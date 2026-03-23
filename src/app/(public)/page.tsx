@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Hero from "@/components/Hero";
 
+/** Lee servicios en cada petición; si no, Next/Vercel sirven HTML cacheado del último build. */
+export const dynamic = "force-dynamic";
+
 type ServiceWithImage = {
   id: number;
   name: string;
@@ -191,13 +194,6 @@ export default async function Home() {
             >
               Reservar ahora
             </Link>
-            <a
-              href="https://wa.me/5215555555555"
-              target="_blank"
-              className="rounded-full border border-stone-300 bg-white px-6 py-3 text-sm font-semibold text-stone-800 transition hover:bg-stone-50 active:scale-[0.99]"
-            >
-              WhatsApp
-            </a>
           </div>
         </div>
       </section>

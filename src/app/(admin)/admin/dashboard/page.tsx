@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function Dashboard() {
   const [countBookings, revenue, upcoming] = await Promise.all([
     prisma.booking.count({ where: { status: { in: ["PENDING", "CONFIRMED"] } } }),

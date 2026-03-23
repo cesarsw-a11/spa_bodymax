@@ -1,9 +1,133 @@
-export default function Footer() {
+import Link from "next/link";
+import FooterContactActions from "@/components/FooterContactActions";
+
+function IconClock({ className }: { className?: string }) {
   return (
-    <footer className="mt-12 border-t">
-      <div className="mx-auto max-w-6xl p-4 text-sm text-slate-500 flex items-center justify-between">
-        <span>© {new Date().getFullYear()} Spa BodyMax</span>
-        <a href="https://wa.me/5215555555555" target="_blank" className="underline">WhatsApp</a>
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function IconSparkle({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+    </svg>
+  );
+}
+
+const linkClass =
+  "text-sm text-violet-100/85 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 rounded-sm";
+
+export default function Footer() {
+  const year = new Date().getFullYear();
+
+  return (
+    <footer
+      className="relative mt-16 overflow-hidden border-t border-violet-400/20 bg-gradient-to-b from-slate-950 via-violet-950 to-slate-950 text-violet-50"
+      role="contentinfo"
+    >
+      {/* Auroras decorativas (misma idea que el hero comentado en home) */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -top-24 -left-20 h-[22rem] w-[22rem] rounded-full bg-violet-500/20 blur-3xl" />
+        <div className="absolute -bottom-32 right-0 h-[28rem] w-[28rem] rounded-full bg-fuchsia-500/15 blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 h-64 w-[min(90%,48rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-400/5 blur-2xl" />
+      </div>
+
+      {/* Línea superior sutil */}
+      <div className="relative h-px w-full bg-gradient-to-r from-transparent via-violet-300/40 to-transparent" />
+
+      <div className="relative mx-auto max-w-6xl px-6 py-14 md:px-10 md:py-16">
+        <div className="grid gap-12 md:grid-cols-12 md:gap-10">
+          {/* Marca */}
+          <div className="md:col-span-5 space-y-5">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-violet-400/35 bg-white/5 px-3 py-1 text-xs font-semibold tracking-wide text-violet-100 backdrop-blur-sm">
+                <IconSparkle className="h-3.5 w-3.5 text-violet-300" />
+                Calm · Balance · Glow
+              </span>
+              <h2 className="mt-4 text-2xl font-semibold tracking-tight text-white md:text-3xl">
+                Spa BodyMax
+              </h2>
+              <p className="mt-3 max-w-md text-sm leading-relaxed text-violet-100/75">
+                Ritual de bienestar en tonos lavanda: masajes, faciales y una experiencia pensada para que
+                desconectes del ruido y vuelvas a ti.
+              </p>
+            </div>
+            <Link
+              href="/reserve"
+              className="inline-flex items-center justify-center rounded-full bg-violet-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-900/40 transition hover:bg-violet-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100"
+            >
+              Reservar ahora
+            </Link>
+          </div>
+
+          {/* Navegación */}
+          <nav className="md:col-span-3" aria-label="Enlaces del sitio">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300/90">
+              Explorar
+            </h3>
+            <ul className="mt-5 flex flex-col gap-3">
+              <li>
+                <Link href="/" className={linkClass}>
+                  Inicio
+                </Link>
+              </li>
+              <li>
+                <Link href="/#servicios" className={linkClass}>
+                  Servicios
+                </Link>
+              </li>
+              <li>
+                <Link href="/reserve" className={linkClass}>
+                  Reservar cita
+                </Link>
+              </li>
+              <li>
+                <Link href="/auth/login" className={linkClass}>
+                  Acceso administración
+                </Link>
+              </li>
+            </ul>
+          </nav>
+
+          {/* Contacto & horario */}
+          <div className="md:col-span-4 space-y-8">
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300/90">
+                Contacto
+              </h3>
+              <FooterContactActions />
+            </div>
+
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300/90">
+                Horario
+              </h3>
+              <div className="mt-4 flex gap-3 rounded-2xl border border-violet-400/15 bg-white/[0.04] p-4 backdrop-blur-sm">
+                <IconClock className="mt-0.5 h-5 w-5 shrink-0 text-violet-300" />
+                <div className="text-sm leading-relaxed text-violet-100/80">
+                  <p className="font-medium text-white">Lun — Dom</p>
+                  <p className="mt-1 text-violet-100/70">9:00 — 20:00</p>
+                  <p className="mt-2 text-xs text-violet-200/55">Sujeto a disponibilidad.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Barra inferior */}
+      <div className="relative border-t border-white/10 bg-black/20">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-5 text-center text-xs text-violet-200/55 md:flex-row md:text-left md:px-10">
+          <p>
+            © {year} Spa BodyMax. Todos los derechos reservados.
+          </p>
+          <p className="max-w-md md:text-right">
+            Experiencia sensorial · reservas en línea seguras
+          </p>
+        </div>
       </div>
     </footer>
   );

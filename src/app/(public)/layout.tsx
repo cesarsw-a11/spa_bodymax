@@ -1,6 +1,7 @@
 // src/app/(public)/layout.tsx
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import WhatsAppFloat from "@/components/WhatsAppFloat";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,6 +10,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       {/* <main className="mx-auto max-w-6xl p-4">{children}</main> */}
       <main className="mx-auto">{children}</main>
       <Footer />
+      <WhatsAppFloat />
     </div>
   );
 }
