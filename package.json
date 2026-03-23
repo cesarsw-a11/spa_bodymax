@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npx prisma migrate dev -n add_service_image_upload",
+    "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint"
   },
