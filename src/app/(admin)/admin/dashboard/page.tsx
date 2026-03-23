@@ -1,13 +1,33 @@
 import { prisma } from "@/lib/prisma";
+import { buildDailyRevenueSeries } from "@/lib/dashboardRevenue";
+import RevenueChart from "@/components/admin/RevenueChart";
 
 export const dynamic = "force-dynamic";
 
+const REVENUE_CHART_DAYS = 60;
+
 export default async function Dashboard() {
-  const [countBookings, revenue, upcoming] = await Promise.all([
+  const chartStart = new Date();
+  chartStart.setDate(chartStart.getDate() - (REVENUE_CHART_DAYS - 1));
+  chartStart.setHours(0, 0, 0, 0);
+
+  const [countBookings, revenue, upcoming, confirmedForChart] = await Promise.all([
     prisma.booking.count({ where: { status: { in: ["PENDING", "CONFIRMED"] } } }),
     prisma.booking.aggregate({ _sum: { price: true }, where: { status: "CONFIRMED" } }),
-    prisma.booking.findMany({ where: { date: { gte: new Date() }, status: { in: ["PENDING", "CONFIRMED"] } }, include: { service: true }, orderBy: { date: "asc" }, take: 5 })
+    prisma.booking.findMany({
+      where: { date: { gte: new Date() }, status: { in: ["PENDING", "CONFIRMED"] } },
+      include: { service: true },
+      orderBy: { date: "asc" },
+      take: 5,
+    }),
+    prisma.booking.findMany({
+      where: { status: "CONFIRMED", date: { gte: chartStart } },
+      select: { date: true, price: true },
+    }),
   ]);
+
+  const revenueByDay = buildDailyRevenueSeries(confirmedForChart, REVENUE_CHART_DAYS);
+  const chartSubtitle = `últimos ${REVENUE_CHART_DAYS} días`;
 
   return (
     <section className="space-y-4">
@@ -37,14 +57,16 @@ export default async function Dashboard() {
           {upcoming.length === 0 && (
             <li className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">No hay citas próximas.</li>
           )}
-          {upcoming.map((b) => (
+          {upcoming.map((b: (typeof upcoming)[number]) => (
             <li key={b.id} className="rounded-xl border border-slate-200 p-3">
-              <div className="font-medium text-slate-900">{b.service.name}</div>
+              <div className="font-medium text-slate-900">{b.service?.name ?? "Servicio"}</div>
               <div className="text-sm text-slate-600">{new Date(b.date).toLocaleString()} — {b.customer}</div>
             </li>
           ))}
         </ul>
       </div>
+
+      <RevenueChart data={revenueByDay} subtitle={chartSubtitle} />
     </section>
   );
 }
