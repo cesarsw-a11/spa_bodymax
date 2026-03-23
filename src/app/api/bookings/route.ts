@@ -51,7 +51,13 @@ export async function POST(req: Request) {
   if (isNaN(start.getTime())) return Response.json({ ok: false, error: "Fecha inválida" }, { status: 400 });
   const end = computeEnd(start, service.durationMin);
   const rawAddonIds = Array.isArray(body.addons)
-    ? [...new Set(body.addons.map((x: unknown) => Number(x)).filter((n) => Number.isInteger(n) && n > 0))]
+    ? [
+        ...new Set(
+          body.addons
+            .map((x: unknown) => Number(x))
+            .filter((n: number): n is number => Number.isInteger(n) && n > 0),
+        ),
+      ]
     : [];
 
   let addonsTotal = 0;
@@ -67,7 +73,9 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    addonsTotal = Math.round(addonRows.reduce((s, r) => s + Number(r.price), 0) * 100) / 100;
+    addonsTotal = Math.round(
+      addonRows.reduce((s: number, r: { price: unknown }) => s + Number(r.price), 0) * 100,
+    ) / 100;
     addonsJsonStored = JSON.stringify(rawAddonIds);
   }
 
