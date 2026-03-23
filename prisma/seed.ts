@@ -22,6 +22,17 @@ async function main() {
     ],
     skipDuplicates: true
   });
+
+  const addonCount = await prisma.addon.count();
+  if (addonCount === 0) {
+    await prisma.addon.createMany({
+      data: [
+        { name: "Aromaterapia", price: 120 },
+        { name: "Piedras calientes", price: 180 },
+        { name: "Exfoliación de manos", price: 90 },
+      ],
+    });
+  }
 }
 
 main().finally(async () => prisma.$disconnect());

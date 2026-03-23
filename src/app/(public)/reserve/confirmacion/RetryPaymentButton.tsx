@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { BrandSpinner } from "@/components/ui/BrandLoading";
+import { ErrorBanner } from "@/components/ui/BrandFeedback";
 
 export default function RetryPaymentButton({ bookingId }: { bookingId: number }) {
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function onRetry() {
     setLoading(true);
+    setErrorMessage(null);
     try {
       const res = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
@@ -22,20 +26,37 @@ export default function RetryPaymentButton({ bookingId }: { bookingId: number })
       window.location.href = json.url;
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudo iniciar el pago.";
-      alert(message);
+      setErrorMessage(message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <button
-      onClick={onRetry}
-      disabled={loading}
-      className="mt-4 w-full cursor-pointer rounded-xl bg-violet-600 px-4 py-3 font-semibold text-white shadow hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {loading ? "Preparando pago…" : "Pagar con Stripe"}
-    </button>
+    <div className="mt-4 space-y-3">
+      {errorMessage ? (
+        <ErrorBanner
+          title="No se pudo abrir el pago"
+          message={errorMessage}
+          onDismiss={() => setErrorMessage(null)}
+        />
+      ) : null}
+      <button
+        type="button"
+        onClick={() => void onRetry()}
+        disabled={loading}
+        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 font-semibold text-white shadow hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {loading ? (
+          <>
+            <BrandSpinner size="sm" />
+            <span>Preparando pago…</span>
+          </>
+        ) : (
+          "Pagar con Stripe"
+        )}
+      </button>
+    </div>
   );
 }
 

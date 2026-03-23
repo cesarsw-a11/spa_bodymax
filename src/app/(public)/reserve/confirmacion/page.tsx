@@ -1,8 +1,11 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import RetryPaymentButton from "./RetryPaymentButton";
+import { LoadingCard, LoadingInline } from "@/components/ui/BrandLoading";
+import { ErrorBanner, SuccessBanner } from "@/components/ui/BrandFeedback";
 
 type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED";
 
@@ -37,6 +40,7 @@ function ConfirmacionContent() {
   const [polling, setPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncedWithStripe, setSyncedWithStripe] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const loadBooking = useCallback(async () => {
     if (Number.isNaN(bookingId)) {
@@ -83,13 +87,27 @@ function ConfirmacionContent() {
     setSyncedWithStripe(true);
     (async () => {
       try {
-        await fetch("/api/stripe/sync-checkout-session", {
+        const syncRes = await fetch("/api/stripe/sync-checkout-session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ bookingId, sessionId }),
         });
+        if (syncRes.ok) {
+          setSyncNotice({ type: "success", text: "Hemos sincronizado tu pago con la reserva." });
+        } else {
+          const body = await syncRes.json().catch(() => null);
+          setSyncNotice({
+            type: "error",
+            text: (body && typeof body === "object" && "error" in body && typeof (body as { error?: string }).error === "string"
+              ? (body as { error: string }).error
+              : "No pudimos sincronizar el pago de inmediato; seguiremos comprobando el estado."),
+          });
+        }
       } catch {
-        // Si falla la sincronización, el polling de estado (PENDING) seguirá intentando.
+        setSyncNotice({
+          type: "error",
+          text: "No pudimos contactar al servidor para sincronizar el pago. Actualiza la página en unos segundos.",
+        });
       } finally {
         await loadBooking();
       }
@@ -116,19 +134,46 @@ function ConfirmacionContent() {
 
   return (
     <div className="mx-auto max-w-3xl p-4">
-      <h1 className="text-2xl font-semibold mb-2 text-slate-900">Confirmación de tu reserva</h1>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <h1 className="text-2xl font-semibold text-slate-900">Confirmación de tu reserva</h1>
+        <Link
+          href="/"
+          className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-violet-200 hover:bg-violet-50/60 hover:text-violet-800"
+        >
+          ← Volver a la página principal
+        </Link>
+      </div>
 
       {loading && (
-        <p className="text-sm text-slate-600">
-          Cargando detalles de la reserva…
-        </p>
+        <LoadingCard message="Cargando los detalles de tu reserva…" className="mt-4" />
       )}
 
-      {error && (
-        <p className="text-sm text-rose-700">
-          {error}
-        </p>
-      )}
+      {error ? (
+        <ErrorBanner
+          className="mt-4"
+          title="Algo salió mal"
+          message={error}
+          onDismiss={() => setError(null)}
+        />
+      ) : null}
+
+      {syncNotice?.type === "success" ? (
+        <SuccessBanner
+          className="mt-4"
+          title="Listo"
+          message={syncNotice.text}
+          onDismiss={() => setSyncNotice(null)}
+          autoHideMs={6000}
+        />
+      ) : null}
+      {syncNotice?.type === "error" ? (
+        <ErrorBanner
+          className="mt-4"
+          title="Sincronización"
+          message={syncNotice.text}
+          onDismiss={() => setSyncNotice(null)}
+        />
+      ) : null}
 
       {!loading && booking && (
         <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
@@ -160,10 +205,11 @@ function ConfirmacionContent() {
           </div>
 
           {booking.status === "CONFIRMED" && (
-            <div className="mt-4">
-              <p className="text-slate-700">
-                ¡Pago confirmado! Ya está registrada tu cita. Te esperamos.
-              </p>
+            <div className="mt-4 space-y-4">
+              <SuccessBanner
+                title="¡Pago confirmado!"
+                message="Tu cita ya está registrada. Te esperamos en BodyMax."
+              />
               <a
                 href="/reserve"
                 className="mt-4 inline-flex rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
@@ -174,10 +220,15 @@ function ConfirmacionContent() {
           )}
 
           {booking.status === "CANCELLED" && (
-            <div className="mt-4">
-              <p className="text-slate-700">
-                No se pudo completar el pago. {cancelledFlag ? "Puedes intentar de nuevo." : ""}
-              </p>
+            <div className="mt-4 space-y-4">
+              <ErrorBanner
+                title="Reserva no completada"
+                message={
+                  cancelledFlag
+                    ? "El pago fue cancelado. Puedes intentar de nuevo con el botón de abajo o crear una nueva reserva."
+                    : "No se pudo completar el pago de esta reserva. Puedes intentar de nuevo o agendar otra cita."
+                }
+              />
               <a
                 href="/reserve"
                 className="mt-4 inline-flex rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
@@ -189,10 +240,10 @@ function ConfirmacionContent() {
 
           {booking.status === "PENDING" && (
             <div className="mt-4">
-              <p className="text-slate-700">
-                Tu pago está pendiente. {polling ? "Verificando en segundos…" : ""}{" "}
-                En algunos casos puede tardar unos segundos.
-              </p>
+              <div className="space-y-2 text-slate-700">
+                <p>Tu pago está pendiente. En algunos casos puede tardar unos segundos.</p>
+                {polling ? <LoadingInline message="Verificando estado del pago…" /> : null}
+              </div>
               <RetryPaymentButton bookingId={booking.id} />
             </div>
           )}
@@ -204,7 +255,13 @@ function ConfirmacionContent() {
 
 export default function ConfirmacionPage() {
   return (
-    <Suspense fallback={<div className="mx-auto max-w-3xl p-4 text-sm text-slate-600">Cargando confirmación…</div>}>
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-3xl p-4">
+          <LoadingCard message="Preparando la confirmación…" />
+        </div>
+      }
+    >
       <ConfirmacionContent />
     </Suspense>
   );

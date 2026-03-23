@@ -10,6 +10,7 @@ export default function AdminNav() {
     { href: "/admin", label: "Inicio" },
     { href: "/admin/dashboard", label: "Dashboard" },
     { href: "/admin/services", label: "Servicios" },
+    { href: "/admin/addons", label: "Complementos" },
     { href: "/admin/bookings", label: "Reservas" },
     { href: "/admin/blocked", label: "Bloqueos" },
   ];

@@ -12,10 +12,6 @@ export function computeDynamicPrice(base: number, start: Date) {
   return Math.round(base * multiplier * 100) / 100;
 }
 
-export function toggleAddon(id: string, addons: string[], setAddons: React.Dispatch<React.SetStateAction<string[]>>) {
-  setAddons(prev => (prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]));
-}
-
 export function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
   return isBefore(aStart, bEnd) && isAfter(aEnd, bStart);
 }

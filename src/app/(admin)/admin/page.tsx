@@ -2,6 +2,7 @@ export default function AdminHome() {
   const shortcuts = [
     { href: "/admin/dashboard", label: "Ver dashboard", desc: "Métricas y próximas citas." },
     { href: "/admin/services", label: "Gestionar servicios", desc: "Alta y activación de tratamientos." },
+    { href: "/admin/addons", label: "Complementos", desc: "Extras opcionales en la reserva (precio dinámico)." },
     { href: "/admin/bookings", label: "Gestionar reservas", desc: "Confirmar o cancelar citas." },
     { href: "/admin/blocked", label: "Bloquear horarios", desc: "Restringe fechas y horas no disponibles." },
   ];

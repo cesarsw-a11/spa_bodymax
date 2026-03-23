@@ -1,24 +1,24 @@
-export const ADDONS = [
-  { id: "aromaterapia", name: "Aromaterapia", price: 120 },
-  { id: "piedras_calientes", name: "Piedras Calientes", price: 180 },
-  { id: "exfoliacion_manos", name: "Exfoliación de Manos", price: 90 },
-] as const;
+export type AddonRow = { id: number; price: number };
 
-export type AddonId = (typeof ADDONS)[number]["id"];
-
-export function computeAddonsTotal(addonIds: string[]) {
-  const unknown: string[] = [];
+/**
+ * Suma precios de complementos a partir del catálogo cargado y los ids seleccionados.
+ */
+export function computeAddonsTotalFromList(
+  catalog: AddonRow[],
+  selectedIds: number[],
+): { total: number; unknown: number[] } {
+  const map = new Map(catalog.map((a) => [a.id, a.price]));
+  const unknown: number[] = [];
   let total = 0;
+  const seen = new Set<number>();
 
-  for (const id of addonIds) {
-    const addon = ADDONS.find((a) => a.id === id);
-    if (!addon) {
-      unknown.push(id);
-      continue;
-    }
-    total += addon.price;
+  for (const id of selectedIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const p = map.get(id);
+    if (p === undefined) unknown.push(id);
+    else total += p;
   }
 
-  return { total, unknown };
+  return { total: Math.round(total * 100) / 100, unknown };
 }
-

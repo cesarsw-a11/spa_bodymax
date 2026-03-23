@@ -109,46 +109,47 @@ export default async function Home() {
 
         <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
           {services.map((s) => (
-            <article
+            <Link
               key={s.id}
-              className="group relative overflow-hidden rounded-[1.75rem] border border-violet-200/60 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl cursor-pointer"
+              href={`/reserve?serviceId=${s.id}`}
+              aria-label={`Reservar: ${s.name}`}
+              className="group block rounded-[1.75rem] outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
             >
-              {s.imageUrl ? (
-                <div
-                  className="h-40 w-full bg-cover bg-center"
-                  style={{ backgroundImage: `url("${s.imageUrl}")` }}
-                  aria-label={`Imagen de ${s.name}`}
-                />
-              ) : (
-                <div className="relative h-40 w-full bg-gradient-to-br from-violet-50 via-fuchsia-50 to-white">
-                  <div className="absolute inset-0">
-                    <div className="absolute -left-8 top-6 h-28 w-28 rounded-full bg-violet-200/40 blur-2xl" />
-                    <div className="absolute right-6 -bottom-6 h-24 w-24 rounded-full bg-fuchsia-200/40 blur-2xl" />
+              <article className="relative h-full overflow-hidden rounded-[1.75rem] border border-violet-200/60 bg-white shadow-sm transition group-hover:-translate-y-1 group-hover:shadow-xl">
+                {s.imageUrl ? (
+                  <div
+                    className="h-40 w-full bg-cover bg-center"
+                    style={{ backgroundImage: `url("${s.imageUrl}")` }}
+                    aria-hidden
+                  />
+                ) : (
+                  <div className="relative h-40 w-full bg-gradient-to-br from-violet-50 via-fuchsia-50 to-white">
+                    <div className="absolute inset-0">
+                      <div className="absolute -left-8 top-6 h-28 w-28 rounded-full bg-violet-200/40 blur-2xl" />
+                      <div className="absolute right-6 -bottom-6 h-24 w-24 rounded-full bg-fuchsia-200/40 blur-2xl" />
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold text-stone-900">{s.name}</h3>
+                  <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-stone-600">{s.description}</p>
+
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-base font-semibold text-stone-900">${Number(s.price).toFixed(2)}</span>
+                    <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700">
+                      {s.durationMin} min
+                    </span>
+                  </div>
+
+                  <div className="mt-5">
+                    <span className="inline-flex items-center justify-center rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-600/25 transition group-hover:bg-violet-700 group-active:scale-[0.99]">
+                      Reservar
+                    </span>
                   </div>
                 </div>
-              )}
-
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-stone-900">{s.name}</h3>
-                <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-stone-600">{s.description}</p>
-
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-base font-semibold text-stone-900">${Number(s.price).toFixed(2)}</span>
-                  <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700">
-                    {s.durationMin} min
-                  </span>
-                </div>
-
-                <div className="mt-5">
-                  <Link
-                    href="/reserve"
-                    className="inline-flex items-center justify-center rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-600/25 transition hover:bg-violet-700 active:scale-[0.99]"
-                  >
-                    Reservar
-                  </Link>
-                </div>
-              </div>
-            </article>
+              </article>
+            </Link>
           ))}
         </div>
       </section>
