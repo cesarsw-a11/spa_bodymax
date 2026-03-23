@@ -2,6 +2,15 @@ import { prisma } from "@/lib/prisma";
 import { computeEnd, computeDynamicPrice } from "@/lib/utils";
 import { isTenDigitPhone, isValidEmailFormat, normalizePhoneDigits } from "@/lib/validation";
 
+/** Normaliza la lista de ids de complementos del body JSON a enteros positivos únicos. */
+function parseAddonIdsFromBody(addons: unknown): number[] {
+  if (!Array.isArray(addons)) return [];
+  const nums = addons
+    .map((x: unknown) => Number(x))
+    .filter((n): n is number => Number.isInteger(n) && n > 0);
+  return [...new Set(nums)];
+}
+
 function parsePagination(searchParams: URLSearchParams) {
   const pageRaw = searchParams.get("page");
   const limitRaw = searchParams.get("limit");
@@ -50,15 +59,7 @@ export async function POST(req: Request) {
   const start = new Date(body.date);
   if (isNaN(start.getTime())) return Response.json({ ok: false, error: "Fecha inválida" }, { status: 400 });
   const end = computeEnd(start, service.durationMin);
-  const rawAddonIds = Array.isArray(body.addons)
-    ? [
-        ...new Set(
-          body.addons
-            .map((x: unknown) => Number(x))
-            .filter((n: number): n is number => Number.isInteger(n) && n > 0),
-        ),
-      ]
-    : [];
+  const rawAddonIds = parseAddonIdsFromBody(body.addons);
 
   let addonsTotal = 0;
   let addonsJsonStored: string | null = null;
