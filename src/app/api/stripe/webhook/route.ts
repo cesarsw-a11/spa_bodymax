@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
+import { paymentIntentIdFromCheckoutSession } from "@/lib/stripeBooking";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -28,9 +29,13 @@ export async function POST(req: Request) {
       const id = Number(bookingId);
       if (!bookingId || Number.isNaN(id)) return new Response("Invalid bookingId metadata", { status: 400 });
 
+      const stripePaymentIntentId = paymentIntentIdFromCheckoutSession(session);
       await prisma.booking.updateMany({
         where: { id, status: "PENDING" },
-        data: { status: "CONFIRMED" },
+        data: {
+          status: "CONFIRMED",
+          ...(stripePaymentIntentId ? { stripePaymentIntentId } : {}),
+        },
       });
     }
 

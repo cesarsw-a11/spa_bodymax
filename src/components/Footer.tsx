@@ -55,12 +55,6 @@ export default function Footer() {
                 desconectes del ruido y vuelvas a ti.
               </p>
             </div>
-            <Link
-              href="/reserve"
-              className="inline-flex items-center justify-center rounded-full bg-violet-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-900/40 transition hover:bg-violet-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100"
-            >
-              Reservar ahora
-            </Link>
           </div>
 
           {/* Navegación */}
@@ -82,11 +76,6 @@ export default function Footer() {
               <li>
                 <Link href="/reserve" className={linkClass}>
                   Reservar cita
-                </Link>
-              </li>
-              <li>
-                <Link href="/auth/login" className={linkClass}>
-                  Acceso administración
                 </Link>
               </li>
             </ul>

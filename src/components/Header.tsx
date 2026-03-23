@@ -17,7 +17,6 @@ export default function Header() {
           <span className="hidden sm:inline">Spa BodyMax</span>
         </Link>
         <nav className="flex items-center gap-4 text-sm">
-          <Link href="/reserve" className="underline">Reservar</Link>
           <Link href="/auth/login" className="underline">Admin</Link>
         </nav>
       </div>

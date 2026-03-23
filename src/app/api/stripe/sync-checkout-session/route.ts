@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
+import { paymentIntentIdFromCheckoutSession } from "@/lib/stripeBooking";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -29,7 +30,14 @@ export async function POST(req: Request) {
   const isPaid = session.payment_status === "paid";
 
   if (isPaid) {
-    await prisma.booking.updateMany({ where: { id: bookingId, status: "PENDING" }, data: { status: "CONFIRMED" } });
+    const stripePaymentIntentId = paymentIntentIdFromCheckoutSession(session);
+    await prisma.booking.updateMany({
+      where: { id: bookingId, status: "PENDING" },
+      data: {
+        status: "CONFIRMED",
+        ...(stripePaymentIntentId ? { stripePaymentIntentId } : {}),
+      },
+    });
   } else {
     await prisma.booking.updateMany({ where: { id: bookingId, status: "PENDING" }, data: { status: "CANCELLED" } });
   }

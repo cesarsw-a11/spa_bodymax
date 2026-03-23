@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import RetryPaymentButton from "./RetryPaymentButton";
 import { LoadingCard, LoadingInline } from "@/components/ui/BrandLoading";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/BrandFeedback";
+import { buildBookingWhatsAppMessage, mexicoWaMeUrlFromTenDigitPhone } from "@/lib/bookingWhatsApp";
+import { isTenDigitPhone, normalizePhoneDigits } from "@/lib/validation";
 
 type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED";
 
@@ -14,6 +16,12 @@ type Booking = {
   status: BookingStatus;
   price: string | number;
   date: string | Date;
+  endDate?: string | Date | null;
+  customer?: string;
+  phone?: string;
+  email?: string | null;
+  notes?: string | null;
+  addonNames?: string[];
   service?: { name?: string | null } | null;
 };
 
@@ -132,6 +140,37 @@ function ConfirmacionContent() {
     };
   }, [bookingId, booking?.status, loadBooking]);
 
+  const whatsappResumeUrl = useMemo(() => {
+    if (!booking) return null;
+    const ten = normalizePhoneDigits(String(booking.phone ?? ""));
+    if (!isTenDigitPhone(ten)) return null;
+    const start = booking.date ? new Date(booking.date) : null;
+    if (!start || isNaN(start.getTime())) return null;
+    const end = booking.endDate ? new Date(booking.endDate) : null;
+    const addonSummary =
+      booking.addonNames && booking.addonNames.length > 0 ? booking.addonNames.join(", ") : null;
+    const paymentStatusLine =
+      booking.status === "CONFIRMED"
+        ? "Pago confirmado. ¡Te esperamos en Spa BodyMax!"
+        : booking.status === "CANCELLED"
+          ? "Esta reserva no se completó. Contáctanos si necesitas ayuda."
+          : "Si aún debes pagar, usa el botón de reintentar pago más abajo.";
+    const text = buildBookingWhatsAppMessage({
+      bookingId: booking.id,
+      customerName: (booking.customer ?? "Cliente").trim() || "Cliente",
+      email: booking.email ?? undefined,
+      phoneTenDigits: ten,
+      serviceName: booking.service?.name ?? "Servicio",
+      dateStart: start,
+      dateEnd: end && !isNaN(end.getTime()) ? end : null,
+      addonSummary,
+      totalMxn: Number(booking.price),
+      notes: booking.notes,
+      paymentStatusLine,
+    });
+    return mexicoWaMeUrlFromTenDigitPhone(ten, text);
+  }, [booking]);
+
   return (
     <div className="mx-auto max-w-3xl p-4">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -173,6 +212,24 @@ function ConfirmacionContent() {
           message={syncNotice.text}
           onDismiss={() => setSyncNotice(null)}
         />
+      ) : null}
+
+      {!loading && booking && whatsappResumeUrl ? (
+        <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+          <p className="text-sm font-medium text-emerald-900">Resumen en tu WhatsApp</p>
+          <p className="mt-1 text-sm text-emerald-800/90">
+            Abre un chat contigo (o guarda el mensaje) con los datos de esta reserva en el número{" "}
+            <span className="font-mono tabular-nums">+52 {normalizePhoneDigits(String(booking.phone ?? ""))}</span>.
+          </p>
+          <a
+            href={whatsappResumeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-[#20BD5A]"
+          >
+            Enviar detalles por WhatsApp
+          </a>
+        </div>
       ) : null}
 
       {!loading && booking && (

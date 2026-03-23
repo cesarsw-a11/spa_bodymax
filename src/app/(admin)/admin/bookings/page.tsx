@@ -79,19 +79,59 @@ export default function AdminBookings() {
     }
   }
 
-  async function updateStatus(id: number, status: string) {
+  async function confirmBooking(id: number) {
     setUpdatingId(id);
     setError(null);
     setSuccessMessage(null);
     try {
-      const res = await fetch(`/api/bookings/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
-      const json = await res.json().catch(() => null);
+      const res = await fetch(`/api/bookings/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "CONFIRMED" }),
+      });
+      const json = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        error?: string;
+      } | null;
       if (!res.ok) {
-        setError(json?.error || "No se pudo actualizar el estado de la reserva.");
+        setError(json?.error || "No se pudo confirmar la reserva.");
         return;
       }
       await refreshListAfterMutation();
-      setSuccessMessage(status === "CONFIRMED" ? "Reserva confirmada." : "Reserva cancelada.");
+      setSuccessMessage("Reserva confirmada.");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function cancelBooking(id: number) {
+    setUpdatingId(id);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const res = await fetch(`/api/bookings/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "CANCELLED" }),
+      });
+      const json = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        error?: string;
+        refund?: { processed?: boolean; reason?: string; refundId?: string };
+      } | null;
+      if (!res.ok) {
+        setError(json?.error || "No se pudo cancelar la reserva.");
+        return;
+      }
+      await refreshListAfterMutation();
+      const r = json?.refund;
+      if (r?.processed) {
+        setSuccessMessage("Reserva cancelada. El horario quedó libre y se envió el reembolso en Stripe.");
+      } else if (r?.reason) {
+        setSuccessMessage(`Reserva cancelada. El horario quedó libre. (${r.reason})`);
+      } else {
+        setSuccessMessage("Reserva cancelada. El horario quedó libre.");
+      }
     } finally {
       setUpdatingId(null);
     }
@@ -148,22 +188,31 @@ export default function AdminBookings() {
                   <LoadingInline message="Actualizando estado…" />
                 ) : (
                   <>
-                    <button
-                      type="button"
-                      onClick={() => void updateStatus(b.id, "CONFIRMED")}
-                      disabled={updatingId !== null}
-                      className="cursor-pointer rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Confirmar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void updateStatus(b.id, "CANCELLED")}
-                      disabled={updatingId !== null}
-                      className="cursor-pointer rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Cancelar
-                    </button>
+                    {b.status === "PENDING" ? (
+                      <button
+                        type="button"
+                        onClick={() => void confirmBooking(b.id)}
+                        disabled={updatingId !== null}
+                        className="cursor-pointer rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Confirmar
+                      </button>
+                    ) : null}
+                    {b.status === "PENDING" || b.status === "CONFIRMED" ? (
+                      <button
+                        type="button"
+                        onClick={() => void cancelBooking(b.id)}
+                        disabled={updatingId !== null}
+                        className="cursor-pointer rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        title={
+                          b.status === "CONFIRMED"
+                            ? "Cancela la cita, libera el horario y reembolsa el pago en Stripe (si hay PaymentIntent guardado)."
+                            : "Cancela la reserva pendiente y libera el horario."
+                        }
+                      >
+                        {b.status === "CONFIRMED" ? "Cancelar y reembolsar" : "Cancelar"}
+                      </button>
+                    ) : null}
                   </>
                 )}
               </div>
