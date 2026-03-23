@@ -1,17 +1,43 @@
+ "use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import LogoutButton from "./LogoutButton";
 
 export default function AdminNav() {
-  return (
-    <nav className="border-b bg-white">
-      <div className="mx-auto max-w-6xl p-3 flex items-center gap-4 text-sm">
-        <Link href="/admin" className="underline">Inicio</Link>
-        <Link href="/admin/services" className="underline">Servicios</Link>
-        <Link href="/admin/bookings" className="underline">Reservas</Link>
-        <Link href="/admin/blocked" className="underline">Bloqueos</Link>
-        <Link href="/admin/dashboard" className="underline">Dashboard</Link>
+  const pathname = usePathname();
+  const links = [
+    { href: "/admin", label: "Inicio" },
+    { href: "/admin/dashboard", label: "Dashboard" },
+    { href: "/admin/services", label: "Servicios" },
+    { href: "/admin/bookings", label: "Reservas" },
+    { href: "/admin/blocked", label: "Bloqueos" },
+  ];
 
-        {/* Botón logout alineado a la derecha */}
+  return (
+    <nav className="sticky top-0 z-30 border-b border-violet-100/70 bg-white/90 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3">
+        <div className="mr-2 hidden rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 px-3 py-1.5 text-xs font-semibold text-white sm:block">
+          Admin SPA
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          {links.map((link) => {
+            const active = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`rounded-lg px-3 py-1.5 font-medium transition ${
+                  active
+                    ? "bg-violet-100 text-violet-700"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+        </div>
         <LogoutButton />
       </div>
     </nav>

@@ -5,18 +5,30 @@ import { authOptions } from "@/lib/auth"; // si usas NextAuth v4 (Opción A)
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
-  if (!session || (session.user as any)?.role !== "ADMIN") {
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  if (!session || role !== "ADMIN") {
     return (
-      <div className="p-6">
-        No autorizado. <a href="/auth/login" className="underline">Inicia sesión</a>.
+      <div className="grid min-h-dvh place-items-center bg-slate-50 p-6">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+          <h1 className="text-xl font-semibold text-slate-900">Acceso restringido</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Necesitas iniciar sesión como administrador para ver este panel.
+          </p>
+          <a
+            href="/auth/login"
+            className="mt-4 inline-flex rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700"
+          >
+            Ir a login
+          </a>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-dvh bg-white">
+    <div className="min-h-dvh bg-gradient-to-br from-slate-50 via-violet-50/40 to-fuchsia-50/40">
       <AdminNav />
-      <main className="mx-auto max-w-6xl p-4">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
     </div>
   );
 }

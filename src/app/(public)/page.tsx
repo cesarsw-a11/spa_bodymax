@@ -2,11 +2,20 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Hero from "@/components/Hero";
 
+type ServiceWithImage = {
+  id: number;
+  name: string;
+  description: string;
+  price: unknown;
+  durationMin: number;
+  imageUrl?: string | null;
+};
+
 export default async function Home() {
-  const services = await prisma.service.findMany({
+  const services = (await prisma.service.findMany({
     where: { active: true },
     orderBy: { id: "asc" },
-  });
+  })) as ServiceWithImage[];
 
   return (
     <div className="space-y-28">
@@ -104,13 +113,20 @@ export default async function Home() {
               key={s.id}
               className="group relative overflow-hidden rounded-[1.75rem] border border-violet-200/60 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl cursor-pointer"
             >
-              {/* header visual púrpura */}
-              <div className="relative h-40 w-full bg-gradient-to-br from-violet-50 via-fuchsia-50 to-white">
-                <div className="absolute inset-0">
-                  <div className="absolute -left-8 top-6 h-28 w-28 rounded-full bg-violet-200/40 blur-2xl" />
-                  <div className="absolute right-6 -bottom-6 h-24 w-24 rounded-full bg-fuchsia-200/40 blur-2xl" />
+              {s.imageUrl ? (
+                <div
+                  className="h-40 w-full bg-cover bg-center"
+                  style={{ backgroundImage: `url("${s.imageUrl}")` }}
+                  aria-label={`Imagen de ${s.name}`}
+                />
+              ) : (
+                <div className="relative h-40 w-full bg-gradient-to-br from-violet-50 via-fuchsia-50 to-white">
+                  <div className="absolute inset-0">
+                    <div className="absolute -left-8 top-6 h-28 w-28 rounded-full bg-violet-200/40 blur-2xl" />
+                    <div className="absolute right-6 -bottom-6 h-24 w-24 rounded-full bg-fuchsia-200/40 blur-2xl" />
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-stone-900">{s.name}</h3>

@@ -12,6 +12,7 @@ export async function POST(req: Request) {
   const data = await prisma.service.create({ data: {
     name: body.name,
     description: body.description,
+    imageUrl: typeof body.imageUrl === "string" && body.imageUrl.trim() ? body.imageUrl.trim() : null,
     price: body.price,
     durationMin: body.durationMin,
     active: body.active ?? true

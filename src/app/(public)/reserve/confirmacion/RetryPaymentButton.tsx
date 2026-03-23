@@ -32,7 +32,7 @@ export default function RetryPaymentButton({ bookingId }: { bookingId: number })
     <button
       onClick={onRetry}
       disabled={loading}
-      className="mt-4 w-full rounded-xl bg-violet-600 px-4 py-3 font-semibold text-white shadow hover:bg-violet-700 disabled:opacity-50"
+      className="mt-4 w-full cursor-pointer rounded-xl bg-violet-600 px-4 py-3 font-semibold text-white shadow hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {loading ? "Preparando pago…" : "Pagar con Stripe"}
     </button>

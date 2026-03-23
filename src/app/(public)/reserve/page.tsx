@@ -232,7 +232,7 @@ async function onSubmit(e: React.FormEvent) {
                     key={s.id}
                     type="button"
                     onClick={() => setServiceId(String(s.id))}
-                    className={`group text-left rounded-2xl ring-1 ring-slate-200 p-4 hover:ring-violet-300 hover:shadow transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                    className={`group cursor-pointer text-left rounded-2xl ring-1 ring-slate-200 p-4 hover:ring-violet-300 hover:shadow transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:cursor-not-allowed ${
                       serviceId === String(s.id) ? "ring-2 ring-violet-600 shadow" : ""
                     }`}
                     aria-pressed={serviceId === String(s.id)}
@@ -378,7 +378,7 @@ async function onSubmit(e: React.FormEvent) {
 
             <button
               type="submit"
-              className="mt-4 w-full rounded-xl bg-violet-600 px-4 py-3 font-semibold text-white shadow hover:bg-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-4 w-full cursor-pointer rounded-xl bg-violet-600 px-4 py-3 font-semibold text-white shadow hover:bg-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={!canSubmit || isSubmitting}
             >
               {isSubmitting ? "Creando pago…" : "Confirmar y pagar"}
