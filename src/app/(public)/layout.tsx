@@ -10,7 +10,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       {/* <main className="mx-auto max-w-6xl p-4">{children}</main> */}
       <main className="mx-auto">{children}</main>
       <Footer />
-      <WhatsAppFloat />
+      {/* <WhatsAppFloat /> */}
     </div>
   );
 }
