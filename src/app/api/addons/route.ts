@@ -4,7 +4,8 @@ import { requireAdmin } from "@/lib/auth";
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   if (searchParams.get("all") === "1") {
-    await requireAdmin();
+    const unauthorized = await requireAdmin();
+    if (unauthorized) return unauthorized;
     const rows = await prisma.addon.findMany({ orderBy: { id: "asc" } });
     const data = rows.map((r) => ({
       id: r.id,
@@ -29,7 +30,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  await requireAdmin();
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
   const body = await req.json();
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const price = Number(body.price);

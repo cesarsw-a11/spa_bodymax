@@ -4,7 +4,8 @@ import { requireAdmin } from "@/lib/auth";
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function DELETE(_req: Request, { params }: RouteContext) {
-  await requireAdmin();
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
   const { id: rawId } = await params;
   const id = Number(rawId);
   if (Number.isNaN(id)) {

@@ -50,6 +50,8 @@ export default function AdminServices() {
   const [listBusy, setListBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  /** Si no es null, el formulario edita ese servicio (PATCH); si no, crea uno nuevo (POST). */
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<ServiceForm>({
     name: "",
     description: "",
@@ -116,6 +118,29 @@ export default function AdminServices() {
     };
   }, [imagePreviewUrl]);
 
+  function beginEdit(s: ServiceWithImage) {
+    setEditingId(s.id);
+    setError(null);
+    setSuccessMessage(null);
+    setImageFile(null);
+    setImagePreviewUrl(null);
+    setForm({
+      name: s.name,
+      description: s.description,
+      imageUrl: (s.imageUrl && String(s.imageUrl).trim()) || "",
+      priceStr: Number(s.price).toString(),
+      durationStr: String(s.durationMin),
+      active: s.active,
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setImageFile(null);
+    setImagePreviewUrl(null);
+    setForm({ name: "", description: "", imageUrl: "", priceStr: "", durationStr: "60", active: true });
+  }
+
   async function save() {
     setError(null);
     setSuccessMessage(null);
@@ -151,8 +176,16 @@ export default function AdminServices() {
       if (imageFile) {
         const fd = new FormData();
         fd.append("file", imageFile);
-        const uploadRes = await fetch("/api/uploads", { method: "POST", body: fd });
-        const uploadJson = await uploadRes.json();
+        const uploadRes = await fetch("/api/uploads", { method: "POST", credentials: "include", body: fd });
+        const uploadText = await uploadRes.text();
+        let uploadJson: { url?: string; error?: string } = {};
+        if (uploadText.trim()) {
+          try {
+            uploadJson = JSON.parse(uploadText) as { url?: string; error?: string };
+          } catch {
+            throw new Error("La subida de imagen devolvió una respuesta no válida. ¿Sigues con sesión de administrador?");
+          }
+        }
         if (!uploadRes.ok || !uploadJson?.url) {
           throw new Error(uploadJson?.error || "No se pudo subir la imagen");
         }
@@ -167,19 +200,56 @@ export default function AdminServices() {
         durationMin,
         active: form.active,
       };
-      const createRes = await fetch("/api/services", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const createJson = await createRes.json();
-      if (!createRes.ok) throw new Error(createJson?.error || "No se pudo crear el servicio");
 
-      await refreshListAfterMutation();
-      setImageFile(null);
-      setImagePreviewUrl(null);
-      setForm({ name: "", description: "", imageUrl: "", priceStr: "", durationStr: "60", active: true });
-      setSuccessMessage("Servicio creado y guardado correctamente.");
+      if (editingId !== null) {
+        const patchRes = await fetch(`/api/services/${editingId}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const patchText = await patchRes.text();
+        let patchJson: { error?: string } = {};
+        if (patchText.trim()) {
+          try {
+            patchJson = JSON.parse(patchText) as { error?: string };
+          } catch {
+            throw new Error("El servidor devolvió una respuesta que no es JSON. Vuelve a iniciar sesión e inténtalo de nuevo.");
+          }
+        } else if (!patchRes.ok) {
+          throw new Error("Respuesta vacía del servidor. Vuelve a iniciar sesión e inténtalo de nuevo.");
+        }
+        if (!patchRes.ok) throw new Error(patchJson?.error || "No se pudo actualizar el servicio");
+
+        await refreshListAfterMutation();
+        cancelEdit();
+        setSuccessMessage("Servicio actualizado correctamente.");
+      } else {
+        const createRes = await fetch("/api/services", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const createText = await createRes.text();
+        let createJson: { error?: string } = {};
+        if (createText.trim()) {
+          try {
+            createJson = JSON.parse(createText) as { error?: string };
+          } catch {
+            throw new Error("El servidor devolvió una respuesta que no es JSON. Vuelve a iniciar sesión e inténtalo de nuevo.");
+          }
+        } else if (!createRes.ok) {
+          throw new Error("Respuesta vacía del servidor. Vuelve a iniciar sesión e inténtalo de nuevo.");
+        }
+        if (!createRes.ok) throw new Error(createJson?.error || "No se pudo crear el servicio");
+
+        await refreshListAfterMutation();
+        setImageFile(null);
+        setImagePreviewUrl(null);
+        setForm({ name: "", description: "", imageUrl: "", priceStr: "", durationStr: "60", active: true });
+        setSuccessMessage("Servicio creado y guardado correctamente.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error inesperado al guardar");
     } finally {
@@ -192,7 +262,12 @@ export default function AdminServices() {
     setError(null);
     setSuccessMessage(null);
     try {
-      const res = await fetch(`/api/services/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active }) });
+      const res = await fetch(`/api/services/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active }),
+      });
       const json = await res.json().catch(() => null);
       if (!res.ok) {
         setError(json?.error || "No se pudo actualizar el estado del servicio.");
@@ -212,7 +287,7 @@ export default function AdminServices() {
     setSuccessMessage(null);
     setListBusy(true);
     try {
-      const res = await fetch(`/api/services/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/services/${id}`, { method: "DELETE", credentials: "include" });
       const json = await res.json().catch(() => null);
       if (!res.ok) {
         setError(json?.error || "No se pudo eliminar el servicio");
@@ -296,7 +371,15 @@ export default function AdminServices() {
                   {s.active ? "Activo" : "Inactivo"}
                 </span>
               </div>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => beginEdit(s)}
+                  disabled={listBusy || saving}
+                  className="cursor-pointer rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-medium text-violet-800 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Editar
+                </button>
                 <button
                   type="button"
                   onClick={() => void toggleActive(s.id, !s.active)}
@@ -336,13 +419,36 @@ export default function AdminServices() {
         {saving ? (
           <LoadingOverlay
             fixed={false}
-            message="Guardando servicio"
-            submessage="Subiendo imagen si aplica y registrando en la base de datos…"
+            message={editingId !== null ? "Actualizando servicio" : "Guardando servicio"}
+            submessage={
+              editingId !== null
+                ? "Subiendo imagen si aplica y guardando cambios…"
+                : "Subiendo imagen si aplica y registrando en la base de datos…"
+            }
           />
         ) : null}
-        <h2 className="mb-3 text-lg font-semibold text-slate-900">Nuevo servicio</h2>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <h2 className="text-lg font-semibold text-slate-900">
+            {editingId !== null ? "Editar servicio" : "Nuevo servicio"}
+          </h2>
+          {editingId !== null ? (
+            <button
+              type="button"
+              onClick={() => cancelEdit()}
+              disabled={saving}
+              className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancelar edición
+            </button>
+          ) : null}
+        </div>
         <p className="mb-3 text-xs text-slate-500">
           Los campos marcados con <span className="font-semibold text-rose-600">*</span> son obligatorios. La imagen es opcional.
+          {editingId !== null ? (
+            <span className="mt-1 block text-violet-700">
+              Estás editando el servicio #{editingId}. Si no eliges otra imagen, se mantiene la actual.
+            </span>
+          ) : null}
         </p>
         <form
           className="space-y-3"
@@ -379,6 +485,7 @@ export default function AdminServices() {
               Imagen del servicio <span className="font-normal text-slate-400">(opcional)</span>
             </label>
             <input
+              key={editingId ?? "new"}
               type="file"
               accept="image/png,image/jpeg,image/jpg,image/pjpeg,image/webp,image/gif,.jpg,.jpeg,.jpe,.png,.webp,.gif"
               className="w-full rounded-xl border border-slate-200 p-2.5 text-sm"
@@ -396,9 +503,22 @@ export default function AdminServices() {
             <p className="text-xs text-slate-500">
               Formatos permitidos: JPEG/JPG (.jpg, .jpeg), PNG, WEBP, GIF. Tamaño máximo: 5MB.
             </p>
+            {form.imageUrl && !imageFile ? (
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
+                className="text-xs font-medium text-rose-600 underline hover:text-rose-700"
+              >
+                Quitar imagen actual (guardar sin foto)
+              </button>
+            ) : null}
             {imagePreviewUrl ? (
               <div className="overflow-hidden rounded-xl border border-slate-200">
                 <img src={imagePreviewUrl} alt="Vista previa" className="h-36 w-full object-cover" />
+              </div>
+            ) : form.imageUrl ? (
+              <div className="overflow-hidden rounded-xl border border-slate-200">
+                <img src={form.imageUrl} alt="Imagen del servicio" className="h-36 w-full object-cover" />
               </div>
             ) : null}
           </div>
@@ -456,6 +576,8 @@ export default function AdminServices() {
                 <BrandSpinner size="sm" />
                 <span>Guardando…</span>
               </>
+            ) : editingId !== null ? (
+              "Guardar cambios"
             ) : (
               "Guardar servicio"
             )}

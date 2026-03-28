@@ -11,7 +11,8 @@ function parsePagination(searchParams: URLSearchParams) {
 }
 
 export async function GET(req: Request) {
-  await requireAdmin();
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
   const { searchParams } = new URL(req.url);
   const pagination = parsePagination(searchParams);
 
@@ -43,7 +44,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  await requireAdmin();
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
   const body = await req.json();
   const data = await prisma.blockedSlot.create({ data: { start: new Date(body.start), end: new Date(body.end), reason: body.reason } });
   return Response.json({ ok: true, data });

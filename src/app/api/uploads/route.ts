@@ -37,7 +37,8 @@ function storedExtension(file: File, mime: string): string {
 }
 
 export async function POST(req: Request) {
-  await requireAdmin();
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
 
   const form = await req.formData();
   const file = form.get("file");

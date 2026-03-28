@@ -34,9 +34,14 @@ export const authOptions: NextAuthOptions = {
 
 import { getServerSession } from "next-auth";
 
-export async function requireAdmin() {
+/** Devuelve 401 JSON si no hay sesión admin; si no, `null`. */
+export async function requireAdmin(): Promise<Response | null> {
   const session = await getServerSession(authOptions);
   if (!session || (session.user as any)?.role !== "ADMIN") {
-    throw new Response("Unauthorized", { status: 401 });
+    return Response.json(
+      { ok: false, error: "No autorizado. Inicia sesión de nuevo como administrador." },
+      { status: 401 },
+    );
   }
+  return null;
 }

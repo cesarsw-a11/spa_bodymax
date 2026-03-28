@@ -39,7 +39,8 @@ export async function GET(_req: Request, { params }: RouteContext) {
 }
 
 export async function PATCH(req: Request, { params }: RouteContext) {
-  await requireAdmin();
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
   const { id: rawId } = await params;
   const id = Number(rawId);
   if (Number.isNaN(id)) return Response.json({ ok: false, error: "ID inválido" }, { status: 400 });
