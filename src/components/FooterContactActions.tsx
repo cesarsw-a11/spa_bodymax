@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
-const DEFAULT_EMAIL_SUBJECT = "Consulta — Spa BodyMax";
+const DEFAULT_EMAIL_SUBJECT = "Consulta — Body Max Spa";
 
 /** Dispara mailto de forma compatible (location.href + cerrar modal a la vez suele fallar). */
 function triggerMailto(href: string) {

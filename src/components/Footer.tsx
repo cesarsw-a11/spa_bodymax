@@ -48,7 +48,7 @@ export default function Footer() {
                 Calm · Balance · Glow
               </span>
               <h2 className="mt-4 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                Spa BodyMax
+                Body Max Spa
               </h2>
               <p className="mt-3 max-w-md text-sm leading-relaxed text-violet-100/75">
                 Ritual de bienestar en tonos lavanda: masajes, faciales y una experiencia pensada para que
@@ -111,7 +111,7 @@ export default function Footer() {
       <div className="relative border-t border-white/10 bg-black/20">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-5 text-center text-xs text-violet-200/55 md:flex-row md:text-left md:px-10">
           <p>
-            © {year} Spa BodyMax. Todos los derechos reservados.
+            © {year} Body Max Spa. Todos los derechos reservados.
           </p>
           <p className="max-w-md md:text-right">
             Experiencia sensorial · reservas en línea seguras

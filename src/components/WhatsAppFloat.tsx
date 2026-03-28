@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 const DEFAULT_WA_MESSAGE =
-  "Hola, me gustaría información sobre Spa BodyMax y disponibilidad para una cita.";
+  "Hola, me gustaría información sobre Body Max Spa y disponibilidad para una cita.";
 
 function digitsOnly(phone: string | undefined) {
   return (phone ?? "").replace(/\D/g, "") || "5215555555555";

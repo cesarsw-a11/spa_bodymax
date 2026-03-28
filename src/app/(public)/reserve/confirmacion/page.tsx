@@ -151,7 +151,7 @@ function ConfirmacionContent() {
       booking.addonNames && booking.addonNames.length > 0 ? booking.addonNames.join(", ") : null;
     const paymentStatusLine =
       booking.status === "CONFIRMED"
-        ? "Pago confirmado. ¡Te esperamos en Spa BodyMax!"
+        ? "Pago confirmado. ¡Te esperamos en Body Max Spa!"
         : booking.status === "CANCELLED"
           ? "Esta reserva no se completó. Contáctanos si necesitas ayuda."
           : "Si aún debes pagar, usa el botón de reintentar pago más abajo.";
@@ -265,7 +265,7 @@ function ConfirmacionContent() {
             <div className="mt-4 space-y-4">
               <SuccessBanner
                 title="¡Pago confirmado!"
-                message="Tu cita ya está registrada. Te esperamos en BodyMax."
+                message="Tu cita ya está registrada. Te esperamos en Body Max Spa."
               />
               <a
                 href="/reserve"

@@ -8,13 +8,13 @@ export default function Header() {
         <Link href="/" className="flex items-center gap-3 font-bold text-slate-900 transition hover:opacity-90">
           <Image
             src="/logo_fondo_blanco.png"
-            alt="Spa BodyMax"
+            alt="Body Max Spa"
             width={300}
             height={100}
             className="h-20 w-auto object-contain sm:h-20"
             priority
           />
-          <span className="hidden sm:inline">Spa BodyMax</span>
+          <span className="hidden sm:inline">Body Max Spa</span>
         </Link>
         <nav className="flex items-center gap-4 text-sm">
           <Link href="/auth/login" className="underline">Admin</Link>

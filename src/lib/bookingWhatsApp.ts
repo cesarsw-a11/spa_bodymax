@@ -26,7 +26,7 @@ export function buildBookingWhatsAppMessage(input: {
     d.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
 
   const lines: string[] = [
-    "*Spa BodyMax — Detalle de reserva*",
+    "*Body Max Spa — Detalle de reserva*",
     "",
     `*Folio:* #${input.bookingId}`,
     `*Nombre:* ${input.customerName}`,
@@ -47,6 +47,6 @@ export function buildBookingWhatsAppMessage(input: {
   if (input.notes?.trim()) {
     lines.push("", "*Notas:*", input.notes.trim());
   }
-  lines.push("", "---", "Gracias por elegir Spa BodyMax.");
+  lines.push("", "---", "Gracias por elegir Body Max Spa.");
   return lines.join("\n");
 }

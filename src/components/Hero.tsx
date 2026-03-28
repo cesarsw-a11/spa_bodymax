@@ -5,7 +5,7 @@ export default function Hero() {
   return (
     <section
       className="relative overflow-hidden"
-      aria-label="Bienvenida Spa BodyMax"
+      aria-label="Bienvenida Body Max Spa"
     >
       {/* Imagen de fondo */}
       <div className="relative h-[520px] md:h-[640px]">
@@ -30,7 +30,7 @@ export default function Hero() {
             </span>
 
             <h1 className="mt-4 text-4xl font-semibold leading-tight text-white md:text-6xl">
-              Spa BodyMax
+              Body Max Spa
             </h1>
 
             <p className="mt-3 text-base leading-relaxed text-violet-50/90 md:text-lg">

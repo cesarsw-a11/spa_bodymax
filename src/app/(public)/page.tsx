@@ -38,7 +38,7 @@ export default async function Home() {
               Calm · Balance · Glow
             </span>
             <h1 className="mt-6 text-4xl font-semibold tracking-tight text-stone-900 md:text-6xl md:leading-[1.1]">
-              Spa BodyMax
+              Body Max Spa
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-stone-600">
               Un refugio sereno en tonos lavanda. Reserva tu masaje o facial con confirmación rápida y vive una experiencia inolvidable.
