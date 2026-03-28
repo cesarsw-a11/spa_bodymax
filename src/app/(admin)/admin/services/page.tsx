@@ -380,7 +380,7 @@ export default function AdminServices() {
             </label>
             <input
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
+              accept="image/png,image/jpeg,image/jpg,image/pjpeg,image/webp,image/gif,.jpg,.jpeg,.jpe,.png,.webp,.gif"
               className="w-full rounded-xl border border-slate-200 p-2.5 text-sm"
               onChange={(e) => {
                 const file = e.target.files?.[0] || null;
@@ -393,7 +393,9 @@ export default function AdminServices() {
                 setImagePreviewUrl(preview);
               }}
             />
-            <p className="text-xs text-slate-500">Formatos permitidos: JPG, PNG, WEBP, GIF. Tamaño máximo: 5MB.</p>
+            <p className="text-xs text-slate-500">
+              Formatos permitidos: JPEG/JPG (.jpg, .jpeg), PNG, WEBP, GIF. Tamaño máximo: 5MB.
+            </p>
             {imagePreviewUrl ? (
               <div className="overflow-hidden rounded-xl border border-slate-200">
                 <img src={imagePreviewUrl} alt="Vista previa" className="h-36 w-full object-cover" />

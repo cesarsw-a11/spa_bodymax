@@ -7,7 +7,34 @@ import { randomUUID } from "node:crypto";
 export const runtime = "nodejs";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const ALLOWED_CANONICAL = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+
+/** Acepta JPEG/JPG (incl. MIME raros o vacío con extensión .jpg/.jpeg). */
+function effectiveImageMime(file: File): string | null {
+  const raw = (file.type || "").toLowerCase().trim();
+  if (raw === "image/jpg" || raw === "image/pjpeg") return "image/jpeg";
+  if (ALLOWED_CANONICAL.has(raw)) return raw;
+
+  const ext = path.extname(file.name || "").toLowerCase();
+  if ([".jpg", ".jpeg", ".jpe"].includes(ext)) return "image/jpeg";
+  if (ext === ".png") return "image/png";
+  if (ext === ".webp") return "image/webp";
+  if (ext === ".gif") return "image/gif";
+
+  return null;
+}
+
+function storedExtension(file: File, mime: string): string {
+  const fromName = path.extname(file.name || "").toLowerCase();
+  if (mime === "image/jpeg" && [".jpg", ".jpeg", ".jpe"].includes(fromName)) return fromName;
+  if (mime === "image/png" && fromName === ".png") return ".png";
+  if (mime === "image/webp" && fromName === ".webp") return ".webp";
+  if (mime === "image/gif" && fromName === ".gif") return ".gif";
+  if (mime === "image/jpeg") return ".jpg";
+  if (mime === "image/png") return ".png";
+  if (mime === "image/webp") return ".webp";
+  return ".gif";
+}
 
 export async function POST(req: Request) {
   await requireAdmin();
@@ -18,9 +45,10 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "Archivo no recibido" }, { status: 400 });
   }
 
-  if (!ALLOWED_TYPES.has(file.type)) {
+  const mime = effectiveImageMime(file);
+  if (!mime) {
     return Response.json(
-      { ok: false, error: "Formato no permitido. Usa JPG, PNG, WEBP o GIF." },
+      { ok: false, error: "Formato no permitido. Usa JPEG/JPG, PNG, WEBP o GIF." },
       { status: 400 },
     );
   }
@@ -34,7 +62,7 @@ export async function POST(req: Request) {
 
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
-  const ext = path.extname(file.name || "").toLowerCase() || ".jpg";
+  const ext = storedExtension(file, mime);
   const fileName = `${Date.now()}-${randomUUID()}${ext}`;
 
   /**
