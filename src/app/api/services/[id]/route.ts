@@ -99,7 +99,25 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
   try {
     const row = await prisma.service.update({ where: { id }, data });
-    return Response.json({ ok: true, data: row });
+
+    const first = await prisma.serviceVariant.findFirst({
+      where: { serviceId: id },
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+    });
+    if (first && (data.price !== undefined || data.durationMin !== undefined)) {
+      const vPatch: { price?: number; durationMin?: number } = {};
+      if (data.price !== undefined) vPatch.price = data.price;
+      if (data.durationMin !== undefined) vPatch.durationMin = data.durationMin;
+      await prisma.serviceVariant.update({ where: { id: first.id }, data: vPatch });
+    }
+
+    const withVariants = await prisma.service.findUnique({
+      where: { id },
+      include: {
+        variants: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+      },
+    });
+    return Response.json({ ok: true, data: withVariants ?? row });
   } catch {
     return errJson(404, "SERVICE_NOT_FOUND", "Servicio no encontrado.");
   }

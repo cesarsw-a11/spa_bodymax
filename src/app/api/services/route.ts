@@ -11,6 +11,8 @@ function parsePagination(searchParams: URLSearchParams) {
   return { page, limit };
 }
 
+const variantOrderBy = [{ sortOrder: "asc" as const }, { id: "asc" as const }];
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const pagination = parsePagination(searchParams);
@@ -23,6 +25,9 @@ export async function GET(req: Request) {
         orderBy: { id: "asc" },
         skip: (page - 1) * limit,
         take: limit,
+        include: {
+          variants: { orderBy: variantOrderBy },
+        },
       }),
     ]);
     const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -38,7 +43,19 @@ export async function GET(req: Request) {
     });
   }
 
-  const data = await prisma.service.findMany({ orderBy: { id: "asc" } });
+  const data = await prisma.service.findMany({
+    where: {
+      active: true,
+      variants: { some: { active: true } },
+    },
+    orderBy: { id: "asc" },
+    include: {
+      variants: {
+        where: { active: true },
+        orderBy: variantOrderBy,
+      },
+    },
+  });
   return Response.json({ ok: true, data });
 }
 
@@ -79,17 +96,32 @@ export async function POST(req: Request) {
   }
 
   try {
-    const data = await prisma.service.create({
-      data: {
-        name,
-        description,
-        nameEn,
-        descriptionEn,
-        imageUrl: typeof body.imageUrl === "string" && body.imageUrl.trim() ? body.imageUrl.trim() : null,
-        price,
-        durationMin,
-        active: body.active !== false,
-      },
+    const data = await prisma.$transaction(async (tx) => {
+      const s = await tx.service.create({
+        data: {
+          name,
+          description,
+          nameEn,
+          descriptionEn,
+          imageUrl: typeof body.imageUrl === "string" && body.imageUrl.trim() ? body.imageUrl.trim() : null,
+          price,
+          durationMin,
+          active: body.active !== false,
+        },
+      });
+      await tx.serviceVariant.create({
+        data: {
+          serviceId: s.id,
+          durationMin,
+          price,
+          sortOrder: 0,
+          active: true,
+        },
+      });
+      return tx.service.findUniqueOrThrow({
+        where: { id: s.id },
+        include: { variants: { orderBy: variantOrderBy } },
+      });
     });
     return Response.json({ ok: true, data });
   } catch (e) {

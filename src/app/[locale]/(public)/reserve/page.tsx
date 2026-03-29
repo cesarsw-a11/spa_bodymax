@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type Service } from "@prisma/client";
+import { type Service, type ServiceVariant } from "@prisma/client";
 import DateTimePicker from "@/components/DateTimePicker";
 import { computeDynamicPrice } from "@/lib/utils";
 import { isTenDigitPhone, isValidEmailFormat, normalizePhoneDigits } from "@/lib/validation";
@@ -12,6 +12,7 @@ import { LoadingCard, LoadingInline, LoadingOverlay } from "@/components/ui/Bran
 import { ErrorBanner } from "@/components/ui/BrandFeedback";
 import { resolveApiErrorMessage } from "@/lib/resolve-api-message";
 import { resolveServiceText } from "@/lib/service-locale";
+import { resolveVariantLabel } from "@/lib/variant-label";
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -62,6 +63,8 @@ function Divider() {
 
 type PublicAddon = { id: number; name: string; price: number };
 
+type ServiceWithVariants = Service & { variants?: ServiceVariant[] };
+
 function ReservaPageContent() {
   const t = useTranslations("reserve");
   const tApi = useTranslations("apiErrors");
@@ -71,6 +74,7 @@ function ReservaPageContent() {
   const preselectServiceId = searchParams.get("serviceId");
 
   const [serviceId, setServiceId] = useState<string>("");
+  const [variantId, setVariantId] = useState<string>("");
   const [selectedAddonIds, setSelectedAddonIds] = useState<number[]>([]);
   const [addonCatalog, setAddonCatalog] = useState<PublicAddon[]>([]);
   const [loadingAddonsCatalog, setLoadingAddonsCatalog] = useState(true);
@@ -82,7 +86,7 @@ function ReservaPageContent() {
   const [notes, setNotes] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [services, setServices] = useState<Service[]>([]);
+  const [services, setServices] = useState<ServiceWithVariants[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [servicesError, setServicesError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -101,10 +105,10 @@ function ReservaPageContent() {
         if (!res.ok) throw new Error(t("errServicesLoad"));
         const json: unknown = await res.json();
         const maybeData = typeof json === "object" && json !== null ? (json as { data?: unknown }).data : undefined;
-        const list: Service[] = Array.isArray(json)
-          ? (json as Service[])
+        const list: ServiceWithVariants[] = Array.isArray(json)
+          ? (json as ServiceWithVariants[])
           : Array.isArray(maybeData)
-            ? (maybeData as Service[])
+            ? (maybeData as ServiceWithVariants[])
             : [];
         if (mounted) setServices(list);
       } catch (e) {
@@ -166,8 +170,32 @@ function ReservaPageContent() {
       Array.isArray(services)
         ? services.find((s) => String(s.id) === String(serviceId)) || null
         : null,
-    [services, serviceId]
+    [services, serviceId],
   );
+
+  useEffect(() => {
+    if (!selectedService) {
+      setVariantId("");
+      return;
+    }
+    const active = (selectedService.variants ?? []).filter((v) => v.active);
+    active.sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+    const first = active[0];
+    if (!first) {
+      setVariantId("");
+      return;
+    }
+    setVariantId((prev) => {
+      const ok = active.some((v) => String(v.id) === prev);
+      return ok ? prev : String(first.id);
+    });
+  }, [selectedService]);
+
+  const selectedVariant = useMemo(() => {
+    if (!selectedService) return null;
+    const active = (selectedService.variants ?? []).filter((v) => v.active);
+    return active.find((v) => String(v.id) === variantId) ?? null;
+  }, [selectedService, variantId]);
 
   const selectedServiceText = useMemo(
     () => (selectedService ? resolveServiceText(selectedService, locale) : null),
@@ -186,13 +214,13 @@ function ReservaPageContent() {
 
   /** Precio del servicio en resumen: base al elegir servicio; con fecha/hora aplica tarifa por horario pico. */
   const serviceSubtotal = useMemo(() => {
-    if (!selectedService) return 0;
-    const base = Number(selectedService.price);
+    if (!selectedService || !selectedVariant) return 0;
+    const base = Number(selectedVariant.price);
     if (selectedDate instanceof Date && !isNaN(selectedDate.getTime())) {
       return computeDynamicPrice(base, selectedDate);
     }
     return Math.round(base * 100) / 100;
-  }, [selectedService, selectedDate]);
+  }, [selectedService, selectedVariant, selectedDate]);
 
   const total = useMemo(
     () => Math.round((serviceSubtotal + addonsTotal) * 100) / 100,
@@ -201,6 +229,7 @@ function ReservaPageContent() {
 
   const canContinueDate =
     !!selectedService &&
+    !!selectedVariant &&
     selectedDate instanceof Date &&
     !isNaN(selectedDate.getTime()) &&
     availabilityStatus === "available";
@@ -214,17 +243,17 @@ function ReservaPageContent() {
   const canSubmit = canContinueDate && dataStepComplete;
 
   const step = useMemo(() => {
-    if (!serviceId) return 1;
+    if (!serviceId || !selectedVariant) return 1;
     const hasDate = selectedDate instanceof Date && !isNaN(selectedDate.getTime());
     if (!hasDate || availabilityStatus !== "available") return 2;
     if (!dataStepComplete) return 3;
     return 4;
-  }, [serviceId, selectedDate, availabilityStatus, dataStepComplete]);
+  }, [serviceId, selectedVariant, selectedDate, availabilityStatus, dataStepComplete]);
 
   useEffect(() => {
     let active = true;
     async function verify() {
-      if (!selectedService || !selectedDate) {
+      if (!selectedVariant || !selectedDate) {
         setAvailabilityStatus("idle");
         return;
       }
@@ -235,19 +264,23 @@ function ReservaPageContent() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            serviceId: selectedService.id,
+            serviceVariantId: selectedVariant.id,
             start: selectedDate.toISOString(),
           }),
         });
+        const raw = (await res.json().catch(() => null)) as {
+          available?: boolean;
+          errorCode?: string;
+          error?: string;
+        } | null;
         if (!res.ok) {
           if (!active) return;
-          setAvailabilityCheckError(t("errAvailabilityNet"));
+          setAvailabilityCheckError(resolveApiErrorMessage(raw, tApi) || t("errAvailabilityNet"));
           setAvailabilityStatus("idle");
           return;
         }
-        const data = (await res.json()) as { available: boolean };
         if (!active) return;
-        setAvailabilityStatus(data.available ? "available" : "unavailable");
+        setAvailabilityStatus(raw?.available ? "available" : "unavailable");
       } catch (e) {
         console.error(e);
         if (!active) return;
@@ -259,7 +292,7 @@ function ReservaPageContent() {
     return () => {
       active = false;
     };
-  }, [selectedService, selectedDate, t]);
+  }, [selectedVariant, selectedDate, t, tApi]);
 
   function toggleAddon(id: number) {
     setSelectedAddonIds((prev) =>
@@ -276,6 +309,7 @@ function ReservaPageContent() {
     try {
       const payload = {
         serviceId,
+        serviceVariantId: selectedVariant!.id,
         date: selectedDate!.toISOString(),
         customer: name.trim(),
         phone,
@@ -388,6 +422,24 @@ function ReservaPageContent() {
               ) : Array.isArray(services) && services.length > 0 ? (
                 services.map((s) => {
                   const st = resolveServiceText(s, locale);
+                  const vars = (s.variants ?? []).filter((v) => v.active);
+                  const priceNums = vars.length ? vars.map((v) => Number(v.price)) : [Number(s.price)];
+                  const baseMin = Math.min(...priceNums);
+                  const baseMax = Math.max(...priceNums);
+                  const hasDate = selectedDate instanceof Date && !isNaN(selectedDate.getTime());
+                  const pLo = hasDate
+                    ? vars.length > 0
+                      ? Math.min(...vars.map((v) => computeDynamicPrice(Number(v.price), selectedDate)))
+                      : computeDynamicPrice(Number(s.price), selectedDate)
+                    : baseMin;
+                  const pHi = hasDate
+                    ? vars.length > 0
+                      ? Math.max(...vars.map((v) => computeDynamicPrice(Number(v.price), selectedDate)))
+                      : pLo
+                    : baseMax;
+                  const durs = vars.length ? vars.map((v) => v.durationMin) : [s.durationMin];
+                  const dLo = Math.min(...durs);
+                  const dHi = Math.max(...durs);
                   return (
                   <button
                     key={s.id}
@@ -403,12 +455,12 @@ function ReservaPageContent() {
                       <div>
                         <h3 className="font-medium text-slate-800">{st.name}</h3>
                         <p className="mt-1 text-sm text-slate-500">
-                          {s.durationMin} {t("min")}
+                          {dLo === dHi ? `${dLo} ${t("min")}` : t("durationRange", { min: dLo, max: dHi })}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-slate-800">
-                          ${selectedDate ? computeDynamicPrice(Number(s.price), selectedDate) : Number(s.price)}
+                          {pLo === pHi ? `$${pLo.toFixed(2)}` : `$${pLo.toFixed(2)} – $${pHi.toFixed(2)}`}
                         </p>
                         <p className="text-xs text-slate-500">{t("mxn")}</p>
                       </div>
@@ -420,6 +472,46 @@ function ReservaPageContent() {
                 <p className="text-sm text-slate-500 md:col-span-2">{t("noServices")}</p>
               )}
             </div>
+            {selectedService ? (
+              (() => {
+                const activeVariants = (selectedService.variants ?? [])
+                  .filter((v) => v.active)
+                  .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+                if (activeVariants.length <= 1) return null;
+                return (
+                  <>
+                    <Divider />
+                    <SectionHeader title={t("variantTitle")} subtitle={t("variantSub")} />
+                    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("variantTitle")}>
+                      {activeVariants.map((v) => {
+                        const lab =
+                          resolveVariantLabel(v, locale) ?? t("variantMinutes", { n: v.durationMin });
+                        const selected = variantId === String(v.id);
+                        return (
+                          <button
+                            key={v.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => setVariantId(String(v.id))}
+                            className={`rounded-xl border px-3 py-2 text-left text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                              selected
+                                ? "border-violet-600 bg-violet-50 font-medium text-violet-900 ring-2 ring-violet-600"
+                                : "border-slate-200 bg-white hover:border-violet-300"
+                            }`}
+                          >
+                            <span className="block">{lab}</span>
+                            <span className="block text-xs text-slate-600">
+                              ${Number(v.price).toFixed(2)} {t("mxn")}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()
+            ) : null}
           </Card>
 
           <Card className="p-4">
@@ -577,7 +669,7 @@ function ReservaPageContent() {
               <div className="flex items-center justify-between">
                 <dt className="text-slate-500">{t("sumDuration")}</dt>
                 <dd className="text-slate-800">
-                  {selectedService ? `${selectedService.durationMin} ${t("min")}` : t("dash")}
+                  {selectedVariant ? `${selectedVariant.durationMin} ${t("min")}` : t("dash")}
                 </dd>
               </div>
               <div className="flex items-center justify-between">

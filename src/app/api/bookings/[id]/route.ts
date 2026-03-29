@@ -22,7 +22,10 @@ export async function GET(_req: Request, { params }: RouteContext) {
   const { id: rawId } = await params;
   const id = Number(rawId);
   if (Number.isNaN(id)) return errJson(400, "INVALID_ID", "ID inválido");
-  const data = await prisma.booking.findUnique({ where: { id }, include: { service: true } });
+  const data = await prisma.booking.findUnique({
+    where: { id },
+    include: { service: true, serviceVariant: true },
+  });
   if (!data) return errJson(404, "BOOKING_NOT_FOUND", "Reserva no encontrada");
 
   const addonIds = parseAddonIdsFromJson(data.addonsJson);

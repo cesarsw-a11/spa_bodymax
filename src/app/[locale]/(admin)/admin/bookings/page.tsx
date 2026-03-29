@@ -5,9 +5,8 @@ import { LoadingCard, LoadingInline } from "@/components/ui/BrandLoading";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/BrandFeedback";
 import { BrandPagination } from "@/components/ui/BrandPagination";
 import { resolveApiErrorMessage } from "@/lib/resolve-api-message";
-import { resolveServiceText } from "@/lib/service-locale";
+import { resolveServiceText, type ServiceTextSource } from "@/lib/service-locale";
 import type { AppLocale } from "@/i18n/routing";
-import type { Service } from "@prisma/client";
 
 type BookingItem = {
   id: number;
@@ -16,7 +15,7 @@ type BookingItem = {
   date: string;
   price: string | number;
   status: "PENDING" | "CONFIRMED" | "CANCELLED";
-  service?: { name?: string | null } | null;
+  service?: ServiceTextSource | null;
 };
 
 const PAGE_SIZE = 8;

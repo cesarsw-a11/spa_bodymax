@@ -1,13 +1,13 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import type { Service } from "@prisma/client";
+import type { Service, ServiceVariant } from "@prisma/client";
 import { BrandSpinner, LoadingCard, LoadingOverlay } from "@/components/ui/BrandLoading";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/BrandFeedback";
 import { BrandPagination } from "@/components/ui/BrandPagination";
 import { resolveApiErrorMessage } from "@/lib/resolve-api-message";
 
-type ServiceWithImage = Service & { imageUrl?: string | null };
+type ServiceWithImage = Service & { imageUrl?: string | null; variants?: ServiceVariant[] };
 
 type ServiceForm = {
   name: string;
@@ -42,6 +42,393 @@ function normalizePriceInput(raw: string): string {
 }
 
 type ListMeta = { page: number; limit: number; total: number; totalPages: number };
+
+function sortServiceVariants(v: ServiceVariant[]) {
+  return [...v].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+}
+
+function ServiceVariantEditorRow({
+  serviceId,
+  variant,
+  parentBusy,
+  t,
+  tApi,
+  onAfterMutation,
+  setError,
+  setSuccessMessage,
+}: {
+  serviceId: number;
+  variant: ServiceVariant;
+  parentBusy: boolean;
+  t: ReturnType<typeof useTranslations<"adminServices">>;
+  tApi: ReturnType<typeof useTranslations<"apiErrors">>;
+  onAfterMutation: () => Promise<void>;
+  setError: (s: string | null) => void;
+  setSuccessMessage: (s: string | null) => void;
+}) {
+  const [priceStr, setPriceStr] = useState(() => normalizePriceInput(Number(variant.price).toString()));
+  const [durationStr, setDurationStr] = useState(String(variant.durationMin));
+  const [label, setLabel] = useState(variant.label ?? "");
+  const [labelEn, setLabelEn] = useState(variant.labelEn ?? "");
+  const [sortOrderStr, setSortOrderStr] = useState(String(variant.sortOrder));
+  const [active, setActive] = useState(variant.active);
+  const [rowSaving, setRowSaving] = useState(false);
+
+  useEffect(() => {
+    setPriceStr(normalizePriceInput(Number(variant.price).toString()));
+    setDurationStr(String(variant.durationMin));
+    setLabel(variant.label ?? "");
+    setLabelEn(variant.labelEn ?? "");
+    setSortOrderStr(String(variant.sortOrder));
+    setActive(variant.active);
+  }, [
+    variant.id,
+    variant.price,
+    variant.durationMin,
+    variant.label,
+    variant.labelEn,
+    variant.sortOrder,
+    variant.active,
+  ]);
+
+  async function saveRow() {
+    setError(null);
+    setSuccessMessage(null);
+    const priceNorm = priceStr.replace(",", ".").trim();
+    const durNorm = durationStr.trim();
+    const price = Number(priceNorm);
+    const durationMin = Math.round(Number(durNorm));
+    if (priceNorm === "" || !Number.isFinite(price) || price <= 0) {
+      setError(t("priceRequired"));
+      return;
+    }
+    if (durNorm === "" || !Number.isFinite(durationMin) || durationMin < 1) {
+      setError(t("durationRequired"));
+      return;
+    }
+    const sortOrder = Math.round(Number(sortOrderStr));
+    setRowSaving(true);
+    try {
+      const res = await fetch(`/api/services/${serviceId}/variants/${variant.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          price,
+          durationMin,
+          label: label.trim() || null,
+          labelEn: labelEn.trim() || null,
+          sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+          active,
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        errorCode?: string;
+      };
+      if (!res.ok) throw new Error(resolveApiErrorMessage(json, tApi));
+      setSuccessMessage(t("variantSaved"));
+      await onAfterMutation();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("saveUnexpected"));
+    } finally {
+      setRowSaving(false);
+    }
+  }
+
+  async function deleteRow() {
+    if (!window.confirm(t("variantDeleteConfirm"))) return;
+    setError(null);
+    setSuccessMessage(null);
+    setRowSaving(true);
+    try {
+      const res = await fetch(`/api/services/${serviceId}/variants/${variant.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        errorCode?: string;
+      };
+      if (!res.ok) throw new Error(resolveApiErrorMessage(json, tApi));
+      setSuccessMessage(t("variantDeleted"));
+      await onAfterMutation();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("saveUnexpected"));
+    } finally {
+      setRowSaving(false);
+    }
+  }
+
+  const disabled = parentBusy || rowSaving;
+
+  return (
+    <li className="rounded-xl border border-violet-100 bg-violet-50/30 p-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-violet-900">ID #{variant.id}</span>
+        {!active ? (
+          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+            {t("variantInactive")}
+          </span>
+        ) : null}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+            {t("variantLabelDuration")}
+          </label>
+          <input
+            type="text"
+            inputMode="numeric"
+            className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm"
+            value={durationStr}
+            onChange={(e) => setDurationStr(e.target.value.replace(/\D/g, ""))}
+          />
+        </div>
+        <div>
+          <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+            {t("variantLabelPrice")}
+          </label>
+          <input
+            type="text"
+            inputMode="decimal"
+            className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm"
+            value={priceStr}
+            onChange={(e) => setPriceStr(normalizePriceInput(e.target.value))}
+          />
+        </div>
+        <div>
+          <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+            {t("variantLabelOrder")}
+          </label>
+          <input
+            type="text"
+            inputMode="numeric"
+            className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm"
+            value={sortOrderStr}
+            onChange={(e) => setSortOrderStr(e.target.value.replace(/[^\d-]/g, ""))}
+          />
+        </div>
+        <div className="sm:col-span-2 lg:col-span-1">
+          <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+            {t("variantLabelEs")}
+          </label>
+          <input
+            className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="60 min"
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+            {t("variantLabelEn")}
+          </label>
+          <input
+            className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm"
+            value={labelEn}
+            onChange={(e) => setLabelEn(e.target.value)}
+            placeholder="60 min"
+          />
+        </div>
+      </div>
+      <label className="mt-2 inline-flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} disabled={disabled} />
+        {t("activeCheck")}
+      </label>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => void saveRow()}
+          disabled={disabled}
+          className="cursor-pointer rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {t("variantSave")}
+        </button>
+        <button
+          type="button"
+          onClick={() => void deleteRow()}
+          disabled={disabled}
+          className="cursor-pointer rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {t("variantDelete")}
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function VariantAddForm({
+  serviceId,
+  parentBusy,
+  t,
+  tApi,
+  onAfterMutation,
+  setError,
+  setSuccessMessage,
+}: {
+  serviceId: number;
+  parentBusy: boolean;
+  t: ReturnType<typeof useTranslations<"adminServices">>;
+  tApi: ReturnType<typeof useTranslations<"apiErrors">>;
+  onAfterMutation: () => Promise<void>;
+  setError: (s: string | null) => void;
+  setSuccessMessage: (s: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [priceStr, setPriceStr] = useState("");
+  const [durationStr, setDurationStr] = useState("60");
+  const [label, setLabel] = useState("");
+  const [labelEn, setLabelEn] = useState("");
+  const [sortOrderStr, setSortOrderStr] = useState("0");
+  const [active, setActive] = useState(true);
+  const [creating, setCreating] = useState(false);
+
+  async function createVariant() {
+    setError(null);
+    setSuccessMessage(null);
+    const priceNorm = priceStr.replace(",", ".").trim();
+    const durNorm = durationStr.trim();
+    const price = Number(priceNorm);
+    const durationMin = Math.round(Number(durNorm));
+    if (priceNorm === "" || !Number.isFinite(price) || price <= 0) {
+      setError(t("priceRequired"));
+      return;
+    }
+    if (durNorm === "" || !Number.isFinite(durationMin) || durationMin < 1) {
+      setError(t("durationRequired"));
+      return;
+    }
+    const sortOrder = Math.round(Number(sortOrderStr));
+    setCreating(true);
+    try {
+      const res = await fetch(`/api/services/${serviceId}/variants`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          price,
+          durationMin,
+          label: label.trim() || null,
+          labelEn: labelEn.trim() || null,
+          sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+          active,
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        errorCode?: string;
+      };
+      if (!res.ok) throw new Error(resolveApiErrorMessage(json, tApi));
+      setSuccessMessage(t("variantCreated"));
+      setOpen(false);
+      setPriceStr("");
+      setDurationStr("60");
+      setLabel("");
+      setLabelEn("");
+      setSortOrderStr("0");
+      setActive(true);
+      await onAfterMutation();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("saveUnexpected"));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const disabled = parentBusy || creating;
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        disabled={parentBusy}
+        className="mt-2 w-full cursor-pointer rounded-lg border border-dashed border-violet-300 bg-white py-2 text-sm font-medium text-violet-800 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {t("variantAdd")}
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-xl border border-violet-200 bg-white p-3">
+      <p className="mb-2 text-xs font-semibold text-violet-900">{t("variantAdd")}</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div>
+          <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+            {t("variantLabelDuration")}
+          </label>
+          <input
+            type="text"
+            inputMode="numeric"
+            className="w-full rounded-lg border border-slate-200 p-2 text-sm"
+            value={durationStr}
+            onChange={(e) => setDurationStr(e.target.value.replace(/\D/g, ""))}
+          />
+        </div>
+        <div>
+          <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+            {t("variantLabelPrice")}
+          </label>
+          <input
+            type="text"
+            inputMode="decimal"
+            className="w-full rounded-lg border border-slate-200 p-2 text-sm"
+            value={priceStr}
+            onChange={(e) => setPriceStr(normalizePriceInput(e.target.value))}
+          />
+        </div>
+        <div>
+          <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+            {t("variantLabelOrder")}
+          </label>
+          <input
+            type="text"
+            inputMode="numeric"
+            className="w-full rounded-lg border border-slate-200 p-2 text-sm"
+            value={sortOrderStr}
+            onChange={(e) => setSortOrderStr(e.target.value.replace(/[^\d-]/g, ""))}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+            {t("variantLabelEs")}
+          </label>
+          <input className="w-full rounded-lg border border-slate-200 p-2 text-sm" value={label} onChange={(e) => setLabel(e.target.value)} />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="mb-0.5 block text-[10px] font-semibold uppercase text-slate-500">
+            {t("variantLabelEn")}
+          </label>
+          <input className="w-full rounded-lg border border-slate-200 p-2 text-sm" value={labelEn} onChange={(e) => setLabelEn(e.target.value)} />
+        </div>
+      </div>
+      <label className="mt-2 inline-flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} disabled={disabled} />
+        {t("activeCheck")}
+      </label>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => void createVariant()}
+          disabled={disabled}
+          className="cursor-pointer rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {t("variantCreate")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          disabled={disabled}
+          className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {t("variantAddCancel")}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminServices() {
   const t = useTranslations("adminServices");
@@ -402,7 +789,34 @@ export default function AdminServices() {
                   ) : null}
                   <div className="mt-1 text-sm text-slate-600">{s.description}</div>
                   <div className="mt-2 text-sm text-slate-700">
-                    {t("durationLine", { price: `$${Number(s.price).toFixed(2)}`, minutes: s.durationMin })}
+                    {(() => {
+                      const vs = sortServiceVariants(s.variants ?? []);
+                      if (vs.length === 0) {
+                        return t("durationLine", {
+                          price: `$${Number(s.price).toFixed(2)}`,
+                          minutes: s.durationMin,
+                        });
+                      }
+                      if (vs.length === 1) {
+                        const v = vs[0];
+                        return t("durationLine", {
+                          price: `$${Number(v.price).toFixed(2)}`,
+                          minutes: v.durationMin,
+                        });
+                      }
+                      const prices = vs.map((v) => Number(v.price));
+                      const pLo = Math.min(...prices);
+                      const pHi = Math.max(...prices);
+                      const dLo = Math.min(...vs.map((v) => v.durationMin));
+                      const dHi = Math.max(...vs.map((v) => v.durationMin));
+                      const priceStr =
+                        pLo === pHi ? `$${pLo.toFixed(2)}` : `$${pLo.toFixed(2)} – $${pHi.toFixed(2)}`;
+                      const durStr =
+                        dLo === dHi
+                          ? `${dLo} min`
+                          : t("variantDurationRange", { min: dLo, max: dHi });
+                      return t("listVariantsLine", { count: vs.length, price: priceStr, duration: durStr });
+                    })()}
                   </div>
                   {s.imageUrl ? (
                     <a href={s.imageUrl} target="_blank" className="mt-2 inline-block text-xs font-medium text-violet-700 underline">
@@ -488,7 +902,10 @@ export default function AdminServices() {
         <p className="mb-3 text-xs text-slate-500">
           {t("formHint")}
           {editingId !== null ? (
-            <span className="mt-1 block text-violet-700">{t("editingNote", { id: editingId })}</span>
+            <>
+              <span className="mt-1 block text-violet-700">{t("editingNote", { id: editingId })}</span>
+              <span className="mt-1 block text-slate-600">{t("formHintEditPricing")}</span>
+            </>
           ) : null}
         </p>
         <form
@@ -588,44 +1005,82 @@ export default function AdminServices() {
               </div>
             ) : null}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {t("labelPrice")} <span className="text-rose-600">*</span>
-              </label>
-              <input
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                className="w-full rounded-xl border border-slate-200 p-2.5"
-                placeholder={t("phPrice")}
-                value={form.priceStr}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, priceStr: normalizePriceInput(e.target.value) }))
-                }
-                onFocus={(e) => e.target.select()}
+          {editingId === null ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {t("labelPrice")} <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    className="w-full rounded-xl border border-slate-200 p-2.5"
+                    placeholder={t("phPrice")}
+                    value={form.priceStr}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, priceStr: normalizePriceInput(e.target.value) }))
+                    }
+                    onFocus={(e) => e.target.select()}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {t("labelDuration")} <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="off"
+                    className="w-full rounded-xl border border-slate-200 p-2.5"
+                    placeholder="60"
+                    value={form.durationStr}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, durationStr: e.target.value.replace(/\D/g, "") }))
+                    }
+                    onFocus={(e) => e.target.select()}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">{t("hintPrice")}</p>
+            </>
+          ) : null}
+          {editingId !== null ? (
+            <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-900">
+                {t("variantSectionTitle")}
+              </p>
+              <p className="mt-1 text-xs text-slate-600">{t("variantSectionHint")}</p>
+              <ul className="mt-3 space-y-3">
+                {sortServiceVariants(items.find((x) => x.id === editingId)?.variants ?? []).map(
+                  (v) => (
+                    <ServiceVariantEditorRow
+                      key={v.id}
+                      serviceId={editingId}
+                      variant={v}
+                      parentBusy={listBusy || saving}
+                      t={t}
+                      tApi={tApi}
+                      onAfterMutation={refreshListAfterMutation}
+                      setError={setError}
+                      setSuccessMessage={setSuccessMessage}
+                    />
+                  ),
+                )}
+              </ul>
+              <VariantAddForm
+                serviceId={editingId}
+                parentBusy={listBusy || saving}
+                t={t}
+                tApi={tApi}
+                onAfterMutation={refreshListAfterMutation}
+                setError={setError}
+                setSuccessMessage={setSuccessMessage}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {t("labelDuration")} <span className="text-rose-600">*</span>
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                autoComplete="off"
-                className="w-full rounded-xl border border-slate-200 p-2.5"
-                placeholder="60"
-                value={form.durationStr}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, durationStr: e.target.value.replace(/\D/g, "") }))
-                }
-                onFocus={(e) => e.target.select()}
-              />
-            </div>
-          </div>
-          <p className="text-xs text-slate-500">{t("hintPrice")}</p>
+          ) : null}
           <label className="inline-flex items-center gap-2 text-sm text-slate-700">
             <input type="checkbox" checked={!!form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} />
             {t("activeCheck")}
