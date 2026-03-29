@@ -210,6 +210,8 @@
     "errAvailabilityGeneric": "Ocurrió un error al consultar disponibilidad. Intenta de nuevo.",
     "errSubmitTitle": "No se pudo continuar",
     "errSubmitGeneric": "No pudimos completar tu reserva. Revisa los datos e intenta de nuevo.",
+    "selectedDetailEyebrow": "Tratamiento elegido",
+    "selectedDetailAria": "Descripción completa del servicio seleccionado",
     "sectionService": "Servicio",
     "sectionServiceSub": "Selecciona el tratamiento que deseas reservar",
     "loadingTreatments": "Cargando tratamientos disponibles…",

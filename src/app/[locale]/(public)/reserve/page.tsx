@@ -341,6 +341,19 @@ function ReservaPageContent() {
 
       <Stepper step={step} />
 
+      {selectedService && selectedServiceText ? (
+        <section
+          className="mb-4 rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-50/90 via-white to-fuchsia-50/40 p-5 shadow-sm ring-1 ring-violet-100/60"
+          aria-label={t("selectedDetailAria")}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">{t("selectedDetailEyebrow")}</p>
+          <h2 className="mt-1 text-xl font-semibold text-slate-900 md:text-2xl">{selectedServiceText.name}</h2>
+          <div className="mt-4 max-h-[min(28rem,55vh)] overflow-y-auto text-sm leading-relaxed text-slate-700 [scrollbar-gutter:stable]">
+            <p className="whitespace-pre-wrap">{selectedServiceText.description}</p>
+          </div>
+        </section>
+      ) : null}
+
       <div className="mb-4 space-y-3">
         {servicesError ? (
           <ErrorBanner

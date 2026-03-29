@@ -210,6 +210,8 @@
     "errAvailabilityGeneric": "Something went wrong checking availability. Try again.",
     "errSubmitTitle": "Could not continue",
     "errSubmitGeneric": "We could not complete your booking. Check your details and try again.",
+    "selectedDetailEyebrow": "Your treatment",
+    "selectedDetailAria": "Full description of the selected service",
     "sectionService": "Service",
     "sectionServiceSub": "Select the treatment you want to book",
     "loadingTreatments": "Loading available treatments…",
