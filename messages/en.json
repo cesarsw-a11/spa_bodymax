@@ -375,7 +375,14 @@
     "saveChanges": "Save changes",
     "saveService": "Save service",
     "updatedOk": "Service updated successfully.",
-    "createdOk": "Service created and saved successfully."
+    "createdOk": "Service created and saved successfully.",
+    "listEnName": "EN: {name}",
+    "sectionEnglish": "English (optional)",
+    "hintEnglish": "Fill in if you want different copy on /en. If empty, the Spanish name and description are shown there too.",
+    "labelNameEn": "Name (English)",
+    "labelDescEn": "Description (English)",
+    "phNameEn": "e.g. Deep tissue massage",
+    "phDescEn": "Description for English visitors"
   },
   "adminHome": {
     "title": "Admin panel",

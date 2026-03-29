@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
 import { getStripe } from "@/lib/stripe";
 import type { AppLocale } from "@/i18n/routing";
+import { resolveServiceText } from "@/lib/service-locale";
 
 export const runtime = "nodejs";
 
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
         price_data: {
           currency: "mxn",
           product_data: {
-            name: booking.service.name,
+            name: resolveServiceText(booking.service, locale).name,
           },
           unit_amount: amountCents,
         },

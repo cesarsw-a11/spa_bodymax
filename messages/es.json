@@ -375,7 +375,14 @@
     "saveChanges": "Guardar cambios",
     "saveService": "Guardar servicio",
     "updatedOk": "Servicio actualizado correctamente.",
-    "createdOk": "Servicio creado y guardado correctamente."
+    "createdOk": "Servicio creado y guardado correctamente.",
+    "listEnName": "EN: {name}",
+    "sectionEnglish": "Inglés (opcional)",
+    "hintEnglish": "Rellena solo si quieres textos distintos en /en. Si lo dejas vacío, allí se usará la versión en español.",
+    "labelNameEn": "Nombre (inglés)",
+    "labelDescEn": "Descripción (inglés)",
+    "phNameEn": "Ej. Deep tissue massage",
+    "phDescEn": "Descripción para visitantes en inglés"
   },
   "adminHome": {
     "title": "Panel de administración",

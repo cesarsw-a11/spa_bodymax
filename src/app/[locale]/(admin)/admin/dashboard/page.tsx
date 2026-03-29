@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { buildDailyRevenueSeries } from "@/lib/dashboardRevenue";
 import RevenueChart from "@/components/admin/RevenueChart";
 import { getLocale, getTranslations } from "next-intl/server";
+import { resolveServiceText } from "@/lib/service-locale";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +69,9 @@ export default async function Dashboard() {
           )}
           {upcoming.map((b: (typeof upcoming)[number]) => (
             <li key={b.id} className="rounded-xl border border-slate-200 p-3">
-              <div className="font-medium text-slate-900">{b.service?.name ?? t("serviceFallback")}</div>
+              <div className="font-medium text-slate-900">
+                {b.service ? resolveServiceText(b.service, locale).name : t("serviceFallback")}
+              </div>
               <div className="text-sm text-slate-600">
                 {new Date(b.date).toLocaleString(dateLocale)} — {b.customer}
               </div>

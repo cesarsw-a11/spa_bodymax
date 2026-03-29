@@ -5,7 +5,9 @@ import { LoadingCard, LoadingInline } from "@/components/ui/BrandLoading";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/BrandFeedback";
 import { BrandPagination } from "@/components/ui/BrandPagination";
 import { resolveApiErrorMessage } from "@/lib/resolve-api-message";
+import { resolveServiceText } from "@/lib/service-locale";
 import type { AppLocale } from "@/i18n/routing";
+import type { Service } from "@prisma/client";
 
 type BookingItem = {
   id: number;
@@ -200,7 +202,7 @@ export default function AdminBookings() {
                   <div className="mt-1 text-sm text-slate-600">
                     {t("lineMeta", {
                       datetime: new Date(b.date).toLocaleString(dateLocale),
-                      service: b.service?.name ?? "—",
+                      service: b.service ? resolveServiceText(b.service, locale).name : "—",
                       price: Number(b.price).toFixed(2),
                     })}
                   </div>

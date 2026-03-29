@@ -25,7 +25,10 @@ enum Role {
 model Service {
   id          Int       @id @default(autoincrement())
   name        String
-  description String
+  description String    @db.Text
+  /** Inglés (opcional). Si falta, en /en se usa name/description. */
+  nameEn        String?
+  descriptionEn String?   @db.Text
   imageUrl    String?
   price       Decimal   @db.Decimal(10,2)
   durationMin Int       // minutos

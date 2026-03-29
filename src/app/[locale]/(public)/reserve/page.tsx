@@ -11,6 +11,7 @@ import { computeAddonsTotalFromList } from "@/lib/addons";
 import { LoadingCard, LoadingInline, LoadingOverlay } from "@/components/ui/BrandLoading";
 import { ErrorBanner } from "@/components/ui/BrandFeedback";
 import { resolveApiErrorMessage } from "@/lib/resolve-api-message";
+import { resolveServiceText } from "@/lib/service-locale";
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -166,6 +167,11 @@ function ReservaPageContent() {
         ? services.find((s) => String(s.id) === String(serviceId)) || null
         : null,
     [services, serviceId]
+  );
+
+  const selectedServiceText = useMemo(
+    () => (selectedService ? resolveServiceText(selectedService, locale) : null),
+    [selectedService, locale],
   );
 
   const addonsCatalogRows = useMemo(
@@ -367,7 +373,9 @@ function ReservaPageContent() {
               {loadingServices ? (
                 <LoadingCard message={t("loadingTreatments")} className="min-h-[200px] md:col-span-2" />
               ) : Array.isArray(services) && services.length > 0 ? (
-                services.map((s) => (
+                services.map((s) => {
+                  const st = resolveServiceText(s, locale);
+                  return (
                   <button
                     key={s.id}
                     type="button"
@@ -380,7 +388,7 @@ function ReservaPageContent() {
                   >
                     <div className="flex items-start justify-between">
                       <div>
-                        <h3 className="font-medium text-slate-800">{s.name}</h3>
+                        <h3 className="font-medium text-slate-800">{st.name}</h3>
                         <p className="mt-1 text-sm text-slate-500">
                           {s.durationMin} {t("min")}
                         </p>
@@ -393,7 +401,8 @@ function ReservaPageContent() {
                       </div>
                     </div>
                   </button>
-                ))
+                  );
+                })
               ) : (
                 <p className="text-sm text-slate-500 md:col-span-2">{t("noServices")}</p>
               )}
@@ -549,7 +558,7 @@ function ReservaPageContent() {
               <div className="flex items-center justify-between">
                 <dt className="text-slate-500">{t("sumService")}</dt>
                 <dd className="font-medium text-slate-800">
-                  {selectedService ? selectedService.name : t("dash")}
+                  {selectedServiceText ? selectedServiceText.name : t("dash")}
                 </dd>
               </div>
               <div className="flex items-center justify-between">

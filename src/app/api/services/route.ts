@@ -55,6 +55,8 @@ export async function POST(req: Request) {
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const description = typeof body.description === "string" ? body.description.trim() : "";
+  const nameEn = typeof body.nameEn === "string" ? body.nameEn.trim() || null : null;
+  const descriptionEn = typeof body.descriptionEn === "string" ? body.descriptionEn.trim() || null : null;
   if (!name) {
     return errJson(400, "NAME_REQUIRED", "El nombre es obligatorio.");
   }
@@ -81,6 +83,8 @@ export async function POST(req: Request) {
       data: {
         name,
         description,
+        nameEn,
+        descriptionEn,
         imageUrl: typeof body.imageUrl === "string" && body.imageUrl.trim() ? body.imageUrl.trim() : null,
         price,
         durationMin,

@@ -10,7 +10,9 @@ import { ErrorBanner, SuccessBanner } from "@/components/ui/BrandFeedback";
 import { buildBookingWhatsAppMessage, mexicoWaMeUrlFromTenDigitPhone } from "@/lib/bookingWhatsApp";
 import { isTenDigitPhone, normalizePhoneDigits } from "@/lib/validation";
 import { resolveApiErrorMessage } from "@/lib/resolve-api-message";
+import { resolveServiceText } from "@/lib/service-locale";
 import type { AppLocale } from "@/i18n/routing";
+import type { Service } from "@prisma/client";
 
 type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED";
 
@@ -25,7 +27,7 @@ type Booking = {
   email?: string | null;
   notes?: string | null;
   addonNames?: string[];
-  service?: { name?: string | null } | null;
+  service?: Pick<Service, "name" | "description" | "nameEn" | "descriptionEn"> | null;
 };
 
 type BookingApiResponse = {
@@ -169,7 +171,9 @@ function ConfirmacionContent() {
       customerName: (booking.customer ?? t("customer")).trim() || t("customer"),
       email: booking.email ?? undefined,
       phoneTenDigits: ten,
-      serviceName: booking.service?.name ?? t("serviceFallback"),
+      serviceName: booking.service
+        ? resolveServiceText(booking.service, locale).name
+        : t("serviceFallback"),
       dateStart: start,
       dateEnd: end && !isNaN(end.getTime()) ? end : null,
       addonSummary,
@@ -245,7 +249,11 @@ function ConfirmacionContent() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm text-slate-500">{t("bookingNum", { id: booking.id })}</p>
-              <p className="font-medium text-slate-900">{booking.service?.name ?? t("serviceFallback")}</p>
+              <p className="font-medium text-slate-900">
+                {booking.service
+                  ? resolveServiceText(booking.service, locale).name
+                  : t("serviceFallback")}
+              </p>
               <p className="text-sm text-slate-600">
                 {booking.date ? new Date(booking.date).toLocaleString(dateLocale) : "—"}
               </p>

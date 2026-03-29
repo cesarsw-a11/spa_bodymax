@@ -1,21 +1,20 @@
 import { prisma } from "@/lib/prisma";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Hero from "@/components/Hero";
+import { resolveServiceText } from "@/lib/service-locale";
+import type { Service } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-type ServiceWithImage = {
-  id: number;
-  name: string;
-  description: string;
-  price: unknown;
-  durationMin: number;
-  imageUrl?: string | null;
-};
+type ServiceWithImage = Pick<
+  Service,
+  "id" | "name" | "description" | "nameEn" | "descriptionEn" | "price" | "durationMin" | "imageUrl"
+>;
 
 export default async function Home() {
   const t = await getTranslations("home");
+  const locale = await getLocale();
   const services = (await prisma.service.findMany({
     where: { active: true },
     orderBy: { id: "asc" },
@@ -63,11 +62,13 @@ export default async function Home() {
         </div>
 
         <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((s) => (
+          {services.map((s) => {
+            const { name, description } = resolveServiceText(s, locale);
+            return (
             <Link
               key={s.id}
               href={`/reserve?serviceId=${s.id}`}
-              aria-label={t("bookServiceAria", { name: s.name })}
+              aria-label={t("bookServiceAria", { name })}
               className="group block rounded-[1.75rem] outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
             >
               <article className="relative h-full overflow-hidden rounded-[1.75rem] border border-violet-200/60 bg-white shadow-sm transition group-hover:-translate-y-1 group-hover:shadow-xl">
@@ -87,8 +88,8 @@ export default async function Home() {
                 )}
 
                 <div className="p-6">
-                  <h3 className="text-lg font-semibold text-stone-900">{s.name}</h3>
-                  <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-stone-600">{s.description}</p>
+                  <h3 className="text-lg font-semibold text-stone-900">{name}</h3>
+                  <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-stone-600">{description}</p>
 
                   <div className="mt-4 flex items-center justify-between">
                     <span className="text-base font-semibold text-stone-900">${Number(s.price).toFixed(2)}</span>
@@ -105,7 +106,8 @@ export default async function Home() {
                 </div>
               </article>
             </Link>
-          ))}
+            );
+          })}
         </div>
       </section>
 

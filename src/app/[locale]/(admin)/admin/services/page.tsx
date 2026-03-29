@@ -12,6 +12,8 @@ type ServiceWithImage = Service & { imageUrl?: string | null };
 type ServiceForm = {
   name: string;
   description: string;
+  nameEn: string;
+  descriptionEn: string;
   imageUrl: string;
   /** Texto del input; se parsea al guardar (evita el 0 pegado y leading zeros). */
   priceStr: string;
@@ -59,6 +61,8 @@ export default function AdminServices() {
   const [form, setForm] = useState<ServiceForm>({
     name: "",
     description: "",
+    nameEn: "",
+    descriptionEn: "",
     imageUrl: "",
     priceStr: "",
     durationStr: "60",
@@ -141,6 +145,8 @@ export default function AdminServices() {
     setForm({
       name: s.name,
       description: s.description,
+      nameEn: s.nameEn ?? "",
+      descriptionEn: s.descriptionEn ?? "",
       imageUrl: (s.imageUrl && String(s.imageUrl).trim()) || "",
       priceStr: Number(s.price).toString(),
       durationStr: String(s.durationMin),
@@ -152,7 +158,16 @@ export default function AdminServices() {
     setEditingId(null);
     setImageFile(null);
     setImagePreviewUrl(null);
-    setForm({ name: "", description: "", imageUrl: "", priceStr: "", durationStr: "60", active: true });
+    setForm({
+      name: "",
+      description: "",
+      nameEn: "",
+      descriptionEn: "",
+      imageUrl: "",
+      priceStr: "",
+      durationStr: "60",
+      active: true,
+    });
   }
 
   async function save() {
@@ -209,6 +224,8 @@ export default function AdminServices() {
       const payload = {
         name,
         description,
+        nameEn: form.nameEn.trim() || null,
+        descriptionEn: form.descriptionEn.trim() || null,
         imageUrl,
         price,
         durationMin,
@@ -261,7 +278,16 @@ export default function AdminServices() {
         await refreshListAfterMutation();
         setImageFile(null);
         setImagePreviewUrl(null);
-        setForm({ name: "", description: "", imageUrl: "", priceStr: "", durationStr: "60", active: true });
+        setForm({
+          name: "",
+          description: "",
+          nameEn: "",
+          descriptionEn: "",
+          imageUrl: "",
+          priceStr: "",
+          durationStr: "60",
+          active: true,
+        });
         setSuccessMessage(t("createdOk"));
       }
     } catch (err) {
@@ -371,6 +397,9 @@ export default function AdminServices() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="font-medium text-slate-900">{s.name}</div>
+                  {s.nameEn?.trim() ? (
+                    <div className="mt-0.5 text-xs font-medium text-violet-700">{t("listEnName", { name: s.nameEn.trim() })}</div>
+                  ) : null}
                   <div className="mt-1 text-sm text-slate-600">{s.description}</div>
                   <div className="mt-2 text-sm text-slate-700">
                     {t("durationLine", { price: `$${Number(s.price).toFixed(2)}`, minutes: s.durationMin })}
@@ -491,6 +520,33 @@ export default function AdminServices() {
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             />
+          </div>
+          <div className="rounded-xl border border-violet-100 bg-violet-50/40 p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-900">{t("sectionEnglish")}</p>
+            <p className="mb-3 text-xs text-slate-600">{t("hintEnglish")}</p>
+            <div className="mb-3">
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {t("labelNameEn")}
+              </label>
+              <input
+                className="w-full rounded-xl border border-slate-200 bg-white p-2.5"
+                placeholder={t("phNameEn")}
+                value={form.nameEn}
+                onChange={(e) => setForm((f) => ({ ...f, nameEn: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {t("labelDescEn")}
+              </label>
+              <textarea
+                rows={3}
+                className="w-full rounded-xl border border-slate-200 bg-white p-2.5"
+                placeholder={t("phDescEn")}
+                value={form.descriptionEn}
+                onChange={(e) => setForm((f) => ({ ...f, descriptionEn: e.target.value }))}
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">

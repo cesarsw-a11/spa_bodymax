@@ -30,6 +30,8 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   const data: {
     name?: string;
     description?: string;
+    nameEn?: string | null;
+    descriptionEn?: string | null;
     imageUrl?: string | null;
     price?: number;
     durationMin?: number;
@@ -54,6 +56,14 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       return errJson(400, "DESC_EMPTY", "La descripción no puede estar vacía.");
     }
     data.description = description;
+  }
+
+  if ("nameEn" in body) {
+    data.nameEn = typeof body.nameEn === "string" ? body.nameEn.trim() || null : null;
+  }
+
+  if ("descriptionEn" in body) {
+    data.descriptionEn = typeof body.descriptionEn === "string" ? body.descriptionEn.trim() || null : null;
   }
 
   if ("price" in body) {
