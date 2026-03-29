@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { errJson } from "@/lib/err-json";
 import { requireAdmin } from "@/lib/auth";
 
 export async function GET(req: Request) {
@@ -37,10 +38,10 @@ export async function POST(req: Request) {
   const price = Number(body.price);
   const active = body.active !== false;
   if (!name) {
-    return Response.json({ ok: false, error: "El nombre es obligatorio." }, { status: 400 });
+    return errJson(400, "ADDON_NAME_REQUIRED", "El nombre es obligatorio.");
   }
   if (!Number.isFinite(price) || price <= 0) {
-    return Response.json({ ok: false, error: "El precio debe ser mayor que 0." }, { status: 400 });
+    return errJson(400, "ADDON_PRICE_INVALID", "El precio debe ser mayor que 0.");
   }
   const row = await prisma.addon.create({
     data: { name, price, active },

@@ -2,6 +2,7 @@
 
 import { Suspense, useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { type Service } from "@prisma/client";
 import DateTimePicker from "@/components/DateTimePicker";
 import { computeDynamicPrice } from "@/lib/utils";
@@ -9,6 +10,7 @@ import { isTenDigitPhone, isValidEmailFormat, normalizePhoneDigits } from "@/lib
 import { computeAddonsTotalFromList } from "@/lib/addons";
 import { LoadingCard, LoadingInline, LoadingOverlay } from "@/components/ui/BrandLoading";
 import { ErrorBanner } from "@/components/ui/BrandFeedback";
+import { resolveApiErrorMessage } from "@/lib/resolve-api-message";
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -28,9 +30,10 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
 }
 
 function Stepper({ step }: { step: number }) {
-  const steps = ["Servicio", "Fecha y hora", "Datos", "Confirmación"];
+  const t = useTranslations("reserve");
+  const steps = [t("stepService"), t("stepDatetime"), t("stepData"), t("stepConfirm")];
   return (
-    <nav aria-label="Progreso" className="mb-6">
+    <nav aria-label={t("ariaProgress")} className="mb-6">
       <ol className="grid grid-cols-4 gap-2">
         {steps.map((label, idx) => {
           const active = idx + 1 <= step;
@@ -59,6 +62,10 @@ function Divider() {
 type PublicAddon = { id: number; name: string; price: number };
 
 function ReservaPageContent() {
+  const t = useTranslations("reserve");
+  const tApi = useTranslations("apiErrors");
+  const locale = useLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-MX";
   const searchParams = useSearchParams();
   const preselectServiceId = searchParams.get("serviceId");
 
@@ -90,7 +97,7 @@ function ReservaPageContent() {
         setLoadingServices(true);
         setServicesError(null);
         const res = await fetch("/api/services", { cache: "no-store" });
-        if (!res.ok) throw new Error("No pudimos cargar los tratamientos. Intenta recargar la página.");
+        if (!res.ok) throw new Error(t("errServicesLoad"));
         const json: unknown = await res.json();
         const maybeData = typeof json === "object" && json !== null ? (json as { data?: unknown }).data : undefined;
         const list: Service[] = Array.isArray(json)
@@ -103,14 +110,14 @@ function ReservaPageContent() {
         console.error(e);
         if (mounted) {
           setServices([]);
-          setServicesError(e instanceof Error ? e.message : "No pudimos cargar los tratamientos.");
+          setServicesError(e instanceof Error ? e.message : t("errServicesGeneric"));
         }
       } finally {
         if (mounted) setLoadingServices(false);
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let mounted = true;
@@ -119,7 +126,7 @@ function ReservaPageContent() {
         setLoadingAddonsCatalog(true);
         setAddonsCatalogError(null);
         const res = await fetch("/api/addons", { cache: "no-store" });
-        if (!res.ok) throw new Error("No pudimos cargar complementos.");
+        if (!res.ok) throw new Error(t("addonsLoadErr"));
         const json: unknown = await res.json();
         const data =
           typeof json === "object" && json !== null && Array.isArray((json as { data?: unknown }).data)
@@ -130,7 +137,7 @@ function ReservaPageContent() {
         console.error(e);
         if (mounted) {
           setAddonCatalog([]);
-          setAddonsCatalogError(e instanceof Error ? e.message : "Error al cargar complementos.");
+          setAddonsCatalogError(e instanceof Error ? e.message : t("addonsGenericErr"));
         }
       } finally {
         if (mounted) setLoadingAddonsCatalog(false);
@@ -139,7 +146,7 @@ function ReservaPageContent() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     setSelectedAddonIds((prev) => prev.filter((id) => addonCatalog.some((a) => a.id === id)));
@@ -228,7 +235,7 @@ function ReservaPageContent() {
         });
         if (!res.ok) {
           if (!active) return;
-          setAvailabilityCheckError("No pudimos verificar la disponibilidad. Revisa tu conexión o prueba otro horario.");
+          setAvailabilityCheckError(t("errAvailabilityNet"));
           setAvailabilityStatus("idle");
           return;
         }
@@ -238,13 +245,15 @@ function ReservaPageContent() {
       } catch (e) {
         console.error(e);
         if (!active) return;
-        setAvailabilityCheckError("Ocurrió un error al consultar disponibilidad. Intenta de nuevo.");
+        setAvailabilityCheckError(t("errAvailabilityGeneric"));
         setAvailabilityStatus("idle");
       }
     }
     verify();
-    return () => { active = false; };
-  }, [selectedService, selectedDate]);
+    return () => {
+      active = false;
+    };
+  }, [selectedService, selectedDate, t]);
 
   function toggleAddon(id: number) {
     setSelectedAddonIds((prev) =>
@@ -252,77 +261,75 @@ function ReservaPageContent() {
     );
   }
 
-async function onSubmit(e: React.FormEvent) {
-  e.preventDefault();
-  if (!canSubmit) return;
-  setIsSubmitting(true);
-  setSubmitError(null);
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-  try {
-    const payload = {
-      serviceId,
-      date: selectedDate!.toISOString(),
-      customer: name.trim(),
-      phone,
-      email: email.trim(),
-      notes: notes.trim() || undefined,
-      addons: selectedAddonIds,
-      total,
-    };
+    try {
+      const payload = {
+        serviceId,
+        date: selectedDate!.toISOString(),
+        customer: name.trim(),
+        phone,
+        email: email.trim(),
+        notes: notes.trim() || undefined,
+        addons: selectedAddonIds,
+        total,
+      };
 
-    const res = await fetch("/api/bookings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => null);
-      const msg =
-        errJson && typeof errJson === "object" && "error" in errJson && typeof (errJson as { error?: string }).error === "string"
-          ? (errJson as { error: string }).error
-          : "Error al crear la reserva";
-      throw new Error(msg);
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const errBody = (await res.json().catch(() => null)) as {
+          error?: string;
+          errorCode?: string;
+        } | null;
+        throw new Error(resolveApiErrorMessage(errBody, tApi));
+      }
+
+      const json = await res.json();
+      const bookingId = json?.data?.id ?? json?.data?.folio ?? json?.id;
+      if (!bookingId) throw new Error(t("bookingIdMissing"));
+
+      const stripeRes = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId, locale }),
+      });
+
+      const stripeJson = (await stripeRes.json()) as {
+        url?: string;
+        error?: string;
+        errorCode?: string;
+      };
+      if (!stripeRes.ok || !stripeJson?.url) {
+        throw new Error(resolveApiErrorMessage(stripeJson, tApi));
+      }
+
+      window.location.href = stripeJson.url;
+    } catch (err) {
+      console.error(err);
+      setSubmitError(err instanceof Error ? err.message : t("errSubmitGeneric"));
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const json = await res.json(); // { ok: true, data: { id, folio? } }
-    const bookingId = json?.data?.id ?? json?.data?.folio ?? json?.id;
-    if (!bookingId) throw new Error("bookingId no recibido");
-
-    const stripeRes = await fetch("/api/stripe/create-checkout-session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bookingId }),
-    });
-
-    const stripeJson = await stripeRes.json();
-    if (!stripeRes.ok || !stripeJson?.url) {
-      throw new Error(stripeJson?.error || "No se pudo iniciar el pago");
-    }
-
-    window.location.href = stripeJson.url;
-  } catch (err) {
-    console.error(err);
-    setSubmitError(
-      err instanceof Error ? err.message : "No pudimos completar tu reserva. Revisa los datos e intenta de nuevo.",
-    );
-  } finally {
-    setIsSubmitting(false);
   }
-}
 
   return (
     <div className="relative mx-auto max-w-6xl p-4">
       {isSubmitting ? (
-        <LoadingOverlay
-          message="Preparando tu pago"
-          submessage="Estamos creando tu reserva y abriendo Stripe de forma segura…"
-        />
+        <LoadingOverlay message={t("loadingPayment")} submessage={t("loadingPaymentSub")} />
       ) : null}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-pink-400 p-6 text-white shadow-sm mb-6">
+      <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-pink-400 p-6 text-white shadow-sm">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.15),transparent_40%),radial-gradient(circle_at_80%_0,rgba(255,255,255,0.12),transparent_35%)]" />
         <div className="relative">
-          <h1 className="text-2xl md:text-3xl font-semibold">Reserva en línea</h1>
-          <p className="text-white/90 mt-1 text-sm md:text-base">Elige tu servicio, fecha y horario. Te tomará menos de 2 minutos ✨</p>
+          <h1 className="text-2xl font-semibold md:text-3xl">{t("title")}</h1>
+          <p className="mt-1 text-sm text-white/90 md:text-base">{t("subtitle")}</p>
         </div>
       </div>
 
@@ -331,21 +338,21 @@ async function onSubmit(e: React.FormEvent) {
       <div className="mb-4 space-y-3">
         {servicesError ? (
           <ErrorBanner
-            title="No se cargaron los servicios"
+            title={t("errServicesTitle")}
             message={servicesError}
             onDismiss={() => setServicesError(null)}
           />
         ) : null}
         {availabilityCheckError ? (
           <ErrorBanner
-            title="Disponibilidad"
+            title={t("errAvailabilityTitle")}
             message={availabilityCheckError}
             onDismiss={() => setAvailabilityCheckError(null)}
           />
         ) : null}
         {submitError ? (
           <ErrorBanner
-            title="No se pudo continuar"
+            title={t("errSubmitTitle")}
             message={submitError}
             onDismiss={() => setSubmitError(null)}
           />
@@ -355,10 +362,10 @@ async function onSubmit(e: React.FormEvent) {
       <form onSubmit={onSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
           <Card className="p-4">
-            <SectionHeader title="Servicio" subtitle="Selecciona el tratamiento que deseas reservar" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <SectionHeader title={t("sectionService")} subtitle={t("sectionServiceSub")} />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {loadingServices ? (
-                <LoadingCard message="Cargando tratamientos disponibles…" className="md:col-span-2 min-h-[200px]" />
+                <LoadingCard message={t("loadingTreatments")} className="min-h-[200px] md:col-span-2" />
               ) : Array.isArray(services) && services.length > 0 ? (
                 services.map((s) => (
                   <button
@@ -374,58 +381,57 @@ async function onSubmit(e: React.FormEvent) {
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="font-medium text-slate-800">{s.name}</h3>
-                        <p className="text-sm text-slate-500 mt-1">{s.durationMin} min</p>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {s.durationMin} {t("min")}
+                        </p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-slate-800">
                           ${selectedDate ? computeDynamicPrice(Number(s.price), selectedDate) : Number(s.price)}
                         </p>
-                        <p className="text-xs text-slate-500">MXN</p>
+                        <p className="text-xs text-slate-500">{t("mxn")}</p>
                       </div>
                     </div>
                   </button>
                 ))
               ) : (
-                <p className="text-sm text-slate-500 md:col-span-2">No hay servicios disponibles en este momento.</p>
+                <p className="text-sm text-slate-500 md:col-span-2">{t("noServices")}</p>
               )}
             </div>
           </Card>
 
           <Card className="p-4">
-            <SectionHeader title="Fecha y hora" subtitle="Selecciona el día y horario disponible" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SectionHeader title={t("sectionDatetime")} subtitle={t("sectionDatetimeSub")} />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
                 <DateTimePicker value={selectedDate} onChange={setSelectedDate} minDate={new Date()} />
                 <p className="mt-2 flex min-h-[1.5rem] flex-wrap items-center gap-2 text-sm">
                   {availabilityStatus === "idle" && !availabilityCheckError && (
-                    <span className="text-slate-500">Selecciona servicio y horario.</span>
+                    <span className="text-slate-500">{t("pickServiceTime")}</span>
                   )}
-                  {availabilityStatus === "checking" && <LoadingInline message="Verificando disponibilidad…" />}
+                  {availabilityStatus === "checking" && <LoadingInline message={t("checkingSlot")} />}
                   {availabilityStatus === "available" && (
                     <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700">
                       <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-                      Horario disponible
+                      {t("slotOk")}
                     </span>
                   )}
                   {availabilityStatus === "unavailable" && (
-                    <span className="font-medium text-rose-700">Horario no disponible, elige otra fecha u hora.</span>
+                    <span className="font-medium text-rose-700">{t("slotBad")}</span>
                   )}
                 </p>
               </div>
             </div>
 
             <Divider />
-            <SectionHeader
-              title="Complementos (opcional)"
-              subtitle="Personaliza tu experiencia con extras disponibles."
-            />
+            <SectionHeader title={t("addonsTitle")} subtitle={t("addonsSub")} />
             {addonsCatalogError ? (
               <p className="mb-3 text-sm text-amber-800">{addonsCatalogError}</p>
             ) : null}
             {loadingAddonsCatalog ? (
-              <LoadingInline message="Cargando complementos…" />
+              <LoadingInline message={t("loadingAddons")} />
             ) : addonCatalog.length === 0 ? (
-              <p className="text-sm text-slate-500">Por ahora no hay complementos disponibles.</p>
+              <p className="text-sm text-slate-500">{t("noAddons")}</p>
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {addonCatalog.map((a) => (
@@ -441,7 +447,9 @@ async function onSubmit(e: React.FormEvent) {
                     />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-slate-800">{a.name}</p>
-                      <p className="text-xs text-slate-500">+ ${Number(a.price).toFixed(2)} MXN</p>
+                      <p className="text-xs text-slate-500">
+                        + ${Number(a.price).toFixed(2)} {t("mxn")}
+                      </p>
                     </div>
                   </label>
                 ))}
@@ -450,17 +458,14 @@ async function onSubmit(e: React.FormEvent) {
           </Card>
 
           <Card className="p-4">
-            <SectionHeader
-              title="Tus datos"
-              subtitle="Nombre, teléfono y correo son obligatorios para confirmar el pago. Las notas son opcionales."
-            />
+            <SectionHeader title={t("dataTitle")} subtitle={t("dataSub")} />
             <p className="mb-4 text-xs text-slate-500">
-              <span className="font-semibold text-rose-600">*</span> obligatorio · Teléfono: exactamente 10 dígitos (celular o fijo en México).
+              <span className="font-semibold text-rose-600">*</span> {t("requiredHint")}
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="text-sm font-medium text-slate-700">
-                  Nombre completo <span className="text-rose-600">*</span>
+                  {t("fullName")} <span className="text-rose-600">*</span>
                 </label>
                 <input
                   type="text"
@@ -468,17 +473,17 @@ async function onSubmit(e: React.FormEvent) {
                   className={`mt-1 w-full rounded-xl border bg-white p-2.5 focus:border-violet-500 focus:ring-violet-500 ${
                     canContinueDate && !nameOk ? "border-rose-300 ring-1 ring-rose-100" : "border-slate-200"
                   }`}
-                  placeholder="Ej. María López García"
+                  placeholder={t("namePh")}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
                 {canContinueDate && !nameOk ? (
-                  <p className="mt-1 text-xs text-rose-600">Escribe tu nombre completo.</p>
+                  <p className="mt-1 text-xs text-rose-600">{t("nameErr")}</p>
                 ) : null}
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700">
-                  Teléfono <span className="text-rose-600">*</span>
+                  {t("phone")} <span className="text-rose-600">*</span>
                 </label>
                 <input
                   type="text"
@@ -488,21 +493,21 @@ async function onSubmit(e: React.FormEvent) {
                   className={`mt-1 w-full rounded-xl border bg-white p-2.5 font-mono tabular-nums tracking-wide focus:border-violet-500 focus:ring-violet-500 ${
                     canContinueDate && phone.length > 0 && !phoneOk ? "border-rose-300 ring-1 ring-rose-100" : "border-slate-200"
                   }`}
-                  placeholder="10 dígitos, ej. 5512345678"
+                  placeholder={t("phonePh")}
                   value={phone}
                   onChange={(e) => setPhone(normalizePhoneDigits(e.target.value))}
                   aria-describedby="phone-hint"
                 />
                 <p id="phone-hint" className="mt-1 text-xs text-slate-500">
-                  {phone.length}/10 dígitos
+                  {t("phoneDigits", { n: phone.length })}
                 </p>
                 {canContinueDate && phone.length > 0 && !phoneOk ? (
-                  <p className="mt-0.5 text-xs text-rose-600">Deben ser exactamente 10 dígitos.</p>
+                  <p className="mt-0.5 text-xs text-rose-600">{t("phoneErr")}</p>
                 ) : null}
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700">
-                  Correo electrónico <span className="text-rose-600">*</span>
+                  {t("email")} <span className="text-rose-600">*</span>
                 </label>
                 <input
                   type="email"
@@ -510,25 +515,25 @@ async function onSubmit(e: React.FormEvent) {
                   className={`mt-1 w-full rounded-xl border bg-white p-2.5 focus:border-violet-500 focus:ring-violet-500 ${
                     canContinueDate && email.trim() !== "" && !emailOk ? "border-rose-300 ring-1 ring-rose-100" : "border-slate-200"
                   }`}
-                  placeholder="correo@ejemplo.com"
+                  placeholder={t("emailPh")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
                 {canContinueDate && email.trim() !== "" && !emailOk ? (
-                  <p className="mt-1 text-xs text-rose-600">Usa un formato de correo válido (ej. nombre@dominio.com).</p>
+                  <p className="mt-1 text-xs text-rose-600">{t("emailFmtErr")}</p>
                 ) : null}
                 {canContinueDate && email.trim() === "" ? (
-                  <p className="mt-1 text-xs text-amber-700/90">El correo es obligatorio.</p>
+                  <p className="mt-1 text-xs text-amber-700/90">{t("emailRequired")}</p>
                 ) : null}
               </div>
               <div className="md:col-span-2">
                 <label className="text-sm font-medium text-slate-700">
-                  Notas <span className="font-normal text-slate-400">(opcional)</span>
+                  {t("notes")} <span className="font-normal text-slate-400">{t("notesOptional")}</span>
                 </label>
                 <textarea
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-2.5 focus:border-violet-500 focus:ring-violet-500"
                   rows={3}
-                  placeholder="Alergias, preferencias, etc."
+                  placeholder={t("notesPh")}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
@@ -539,46 +544,54 @@ async function onSubmit(e: React.FormEvent) {
 
         <div className="lg:col-span-1">
           <Card className="p-4 lg:sticky lg:top-4">
-            <SectionHeader title="Resumen" subtitle="Revisa los detalles antes de confirmar" />
+            <SectionHeader title={t("summaryTitle")} subtitle={t("summarySub")} />
             <dl className="space-y-2 text-sm">
               <div className="flex items-center justify-between">
-                <dt className="text-slate-500">Servicio</dt>
-                <dd className="text-slate-800 font-medium">{selectedService ? selectedService.name : "—"}</dd>
+                <dt className="text-slate-500">{t("sumService")}</dt>
+                <dd className="font-medium text-slate-800">
+                  {selectedService ? selectedService.name : t("dash")}
+                </dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-slate-500">Duración</dt>
-                <dd className="text-slate-800">{selectedService ? `${selectedService.durationMin} min` : "—"}</dd>
+                <dt className="text-slate-500">{t("sumDuration")}</dt>
+                <dd className="text-slate-800">
+                  {selectedService ? `${selectedService.durationMin} ${t("min")}` : t("dash")}
+                </dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-slate-500">Fecha</dt>
-                <dd className="text-slate-800">{selectedDate ? selectedDate.toLocaleDateString() : "—"}</dd>
+                <dt className="text-slate-500">{t("sumDate")}</dt>
+                <dd className="text-slate-800">
+                  {selectedDate ? selectedDate.toLocaleDateString(dateLocale) : t("dash")}
+                </dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-slate-500">Hora</dt>
-                <dd className="text-slate-800">{selectedDate ? selectedDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</dd>
+                <dt className="text-slate-500">{t("sumTime")}</dt>
+                <dd className="text-slate-800">
+                  {selectedDate
+                    ? selectedDate.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })
+                    : t("dash")}
+                </dd>
               </div>
               <Divider />
               <div className="flex items-center justify-between">
-                <dt className="text-slate-500">Subtotal (servicio)</dt>
-                <dd className="text-slate-800 tabular-nums" aria-live="polite" aria-atomic="true">
-                  ${serviceSubtotal.toFixed(2)} MXN
+                <dt className="text-slate-500">{t("sumSubtotal")}</dt>
+                <dd className="tabular-nums text-slate-800" aria-live="polite" aria-atomic="true">
+                  ${serviceSubtotal.toFixed(2)} {t("mxn")}
                 </dd>
               </div>
               {selectedService && !selectedDate ? (
-                <p className="text-[11px] leading-snug text-slate-400">
-                  Precio base. Al elegir fecha y hora puede aplicarse ajuste por horario.
-                </p>
+                <p className="text-[11px] leading-snug text-slate-400">{t("sumBaseHint")}</p>
               ) : null}
               <div className="flex items-center justify-between">
-                <dt className="text-slate-500">Complementos</dt>
-                <dd className="text-slate-800 tabular-nums" aria-live="polite" aria-atomic="true">
-                  ${addonsTotal.toFixed(2)} MXN
+                <dt className="text-slate-500">{t("sumAddons")}</dt>
+                <dd className="tabular-nums text-slate-800" aria-live="polite" aria-atomic="true">
+                  ${addonsTotal.toFixed(2)} {t("mxn")}
                 </dd>
               </div>
               <div className="flex items-center justify-between text-base font-semibold">
-                <dt>Total</dt>
+                <dt>{t("sumTotal")}</dt>
                 <dd className="tabular-nums" aria-live="polite" aria-atomic="true">
-                  ${total.toFixed(2)} MXN
+                  ${total.toFixed(2)} {t("mxn")}
                 </dd>
               </div>
             </dl>
@@ -588,32 +601,31 @@ async function onSubmit(e: React.FormEvent) {
               className="mt-4 w-full cursor-pointer rounded-xl bg-violet-600 px-4 py-3 font-semibold text-white shadow hover:bg-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={!canSubmit || isSubmitting}
             >
-              {isSubmitting ? "Creando pago…" : "Confirmar y pagar"}
+              {isSubmitting ? t("creatingPayment") : t("confirmPay")}
             </button>
 
-            <p className="text-xs text-slate-500 mt-3">
-              Al confirmar, te llevaremos a Stripe para completar el pago. Luego podrás ver el estado en esta página.
-            </p>
+            <p className="mt-3 text-xs text-slate-500">{t("stripeNote")}</p>
           </Card>
         </div>
       </form>
 
-      <p className="text-xs text-slate-500 mt-4">
-        * Para una experiencia óptima, llega 10 minutos antes de tu cita. Si necesitas reagendar, avísanos con 24h de anticipación.
-      </p>
+      <p className="mt-4 text-xs text-slate-500">{t("footerNote")}</p>
+    </div>
+  );
+}
+
+function ReserveSuspenseFallback() {
+  const t = useTranslations("reserve");
+  return (
+    <div className="relative mx-auto max-w-6xl p-4">
+      <LoadingCard message={t("suspenseLoading")} className="min-h-[240px]" />
     </div>
   );
 }
 
 export default function ReservaPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="relative mx-auto max-w-6xl p-4">
-          <LoadingCard message="Cargando reserva…" className="min-h-[240px]" />
-        </div>
-      }
-    >
+    <Suspense fallback={<ReserveSuspenseFallback />}>
       <ReservaPageContent />
     </Suspense>
   );

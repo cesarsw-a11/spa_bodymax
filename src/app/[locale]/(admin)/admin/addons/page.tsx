@@ -1,7 +1,9 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { BrandSpinner, LoadingCard, LoadingOverlay } from "@/components/ui/BrandLoading";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/BrandFeedback";
+import { resolveApiErrorMessage } from "@/lib/resolve-api-message";
 
 type AddonRow = { id: number; name: string; price: number; active: boolean };
 
@@ -23,6 +25,8 @@ function normalizePriceInput(raw: string): string {
 }
 
 export default function AdminAddons() {
+  const t = useTranslations("adminAddons");
+  const tApi = useTranslations("apiErrors");
   const [items, setItems] = useState<AddonRow[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [listBusy, setListBusy] = useState(false);
@@ -33,10 +37,16 @@ export default function AdminAddons() {
 
   const fetchAll = useCallback(async () => {
     const r = await fetch("/api/addons?all=1");
-    if (!r.ok) throw new Error("No se pudieron cargar los complementos.");
-    const j = await r.json();
+    const j = (await r.json().catch(() => ({}))) as {
+      data?: AddonRow[];
+      error?: string;
+      errorCode?: string;
+    };
+    if (!r.ok) {
+      throw new Error(resolveApiErrorMessage(j, tApi));
+    }
     setItems(j.data || []);
-  }, []);
+  }, [tApi]);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,7 +57,7 @@ export default function AdminAddons() {
         await fetchAll();
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Error al cargar complementos.");
+          setError(e instanceof Error ? e.message : t("loadErrGeneric"));
           setItems([]);
         }
       } finally {
@@ -57,13 +67,13 @@ export default function AdminAddons() {
     return () => {
       cancelled = true;
     };
-  }, [fetchAll]);
+  }, [fetchAll, t]);
 
   async function refreshAfterMutation() {
     try {
       await fetchAll();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al cargar complementos.");
+      setError(e instanceof Error ? e.message : t("loadErrGeneric"));
     }
   }
 
@@ -72,13 +82,13 @@ export default function AdminAddons() {
     setSuccessMessage(null);
     const name = form.name.trim();
     if (!name) {
-      setError("El nombre del complemento es obligatorio.");
+      setError(t("nameRequired"));
       return;
     }
     const priceNorm = form.priceStr.replace(",", ".").trim();
     const price = Number(priceNorm);
     if (priceNorm === "" || !Number.isFinite(price) || price <= 0) {
-      setError("Indica un precio válido mayor que 0.");
+      setError(t("priceInvalid"));
       return;
     }
 
@@ -89,13 +99,15 @@ export default function AdminAddons() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, price, active: form.active }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "No se pudo crear el complemento.");
+      const json = (await res.json()) as { error?: string; errorCode?: string };
+      if (!res.ok) {
+        throw new Error(resolveApiErrorMessage(json, tApi));
+      }
       await refreshAfterMutation();
       setForm({ name: "", priceStr: "", active: true });
-      setSuccessMessage("Complemento creado correctamente.");
+      setSuccessMessage(t("createdOk"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al guardar.");
+      setError(err instanceof Error ? err.message : t("saveUnexpected"));
     } finally {
       setSaving(false);
     }
@@ -111,33 +123,39 @@ export default function AdminAddons() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active }),
       });
-      const json = await res.json().catch(() => null);
+      const json = (await res.json().catch(() => null)) as {
+        error?: string;
+        errorCode?: string;
+      } | null;
       if (!res.ok) {
-        setError(json?.error || "No se pudo actualizar el complemento.");
+        setError(json ? resolveApiErrorMessage(json, tApi) : t("toggleErr"));
         return;
       }
       await refreshAfterMutation();
-      setSuccessMessage(active ? "Complemento activado." : "Complemento desactivado.");
+      setSuccessMessage(active ? t("activated") : t("deactivated"));
     } finally {
       setListBusy(false);
     }
   }
 
   async function removeAddon(id: number, name: string) {
-    const ok = window.confirm(`¿Eliminar el complemento «${name}»?`);
+    const ok = window.confirm(t("deleteConfirm", { name }));
     if (!ok) return;
     setListBusy(true);
     setError(null);
     setSuccessMessage(null);
     try {
       const res = await fetch(`/api/addons/${id}`, { method: "DELETE" });
-      const json = await res.json().catch(() => null);
+      const json = (await res.json().catch(() => null)) as {
+        error?: string;
+        errorCode?: string;
+      } | null;
       if (!res.ok) {
-        setError(json?.error || "No se pudo eliminar.");
+        setError(json ? resolveApiErrorMessage(json, tApi) : t("deleteErr"));
         return;
       }
       await refreshAfterMutation();
-      setSuccessMessage(`Se eliminó «${name}».`);
+      setSuccessMessage(t("deleted", { name }));
     } finally {
       setListBusy(false);
     }
@@ -145,7 +163,7 @@ export default function AdminAddons() {
 
   return (
     <>
-      {(successMessage || error) ? (
+      {successMessage || error ? (
         <div
           className="pointer-events-none fixed inset-x-0 top-0 z-[110] flex justify-center px-3 pt-4 sm:pt-5"
           aria-live="polite"
@@ -153,7 +171,7 @@ export default function AdminAddons() {
           <div className="pointer-events-auto flex w-full max-w-lg flex-col gap-2">
             {successMessage ? (
               <SuccessBanner
-                title="Listo"
+                title={t("bannerOk")}
                 message={successMessage}
                 onDismiss={() => setSuccessMessage(null)}
                 autoHideMs={5500}
@@ -162,7 +180,7 @@ export default function AdminAddons() {
             ) : null}
             {error ? (
               <ErrorBanner
-                title="Acción no completada"
+                title={t("bannerErr")}
                 message={error}
                 onDismiss={() => setError(null)}
                 className="shadow-2xl shadow-rose-900/15 ring-1 ring-black/[0.06]"
@@ -175,23 +193,17 @@ export default function AdminAddons() {
       <section className="grid gap-6 md:grid-cols-2">
         <div className="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           {listBusy ? (
-            <LoadingOverlay
-              fixed={false}
-              message="Actualizando complementos"
-              submessage="Aplicando cambios…"
-            />
+            <LoadingOverlay fixed={false} message={t("overlayUpdating")} submessage={t("overlayUpdatingSub")} />
           ) : null}
-          <h1 className="mb-3 text-xl font-semibold text-slate-900">Complementos</h1>
-          <p className="mb-4 text-sm text-slate-600">
-            Los complementos activos aparecen en la reserva pública. El precio se suma al total de la cita.
-          </p>
+          <h1 className="mb-3 text-xl font-semibold text-slate-900">{t("title")}</h1>
+          <p className="mb-4 text-sm text-slate-600">{t("intro")}</p>
           {loadingList ? (
-            <LoadingCard message="Cargando complementos…" className="border-0 bg-transparent py-10 shadow-none" />
+            <LoadingCard message={t("loadingList")} className="border-0 bg-transparent py-10 shadow-none" />
           ) : (
             <ul className="space-y-3">
               {!loadingList && items.length === 0 ? (
                 <li className="rounded-xl border border-dashed border-violet-200 bg-violet-50/40 p-6 text-center text-sm text-slate-600">
-                  No hay complementos. Crea el primero con el formulario de la derecha.
+                  {t("emptyList")}
                 </li>
               ) : null}
               {items.map((a) => (
@@ -199,14 +211,16 @@ export default function AdminAddons() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-medium text-slate-900">{a.name}</div>
-                      <div className="mt-1 text-sm text-slate-700">${Number(a.price).toFixed(2)} MXN</div>
+                      <div className="mt-1 text-sm text-slate-700">
+                        ${Number(a.price).toFixed(2)} {t("mxn")}
+                      </div>
                     </div>
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                         a.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
                       }`}
                     >
-                      {a.active ? "Activo" : "Inactivo"}
+                      {a.active ? t("active") : t("inactive")}
                     </span>
                   </div>
                   <div className="mt-3 flex gap-2">
@@ -216,7 +230,7 @@ export default function AdminAddons() {
                       disabled={listBusy}
                       className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {a.active ? "Desactivar" : "Activar"}
+                      {a.active ? t("deactivate") : t("activate")}
                     </button>
                     <button
                       type="button"
@@ -224,7 +238,7 @@ export default function AdminAddons() {
                       disabled={listBusy}
                       className="cursor-pointer rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Eliminar
+                      {t("delete")}
                     </button>
                   </div>
                 </li>
@@ -235,12 +249,10 @@ export default function AdminAddons() {
 
         <div className="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           {saving ? (
-            <LoadingOverlay fixed={false} message="Guardando complemento" submessage="Registrando en la base de datos…" />
+            <LoadingOverlay fixed={false} message={t("savingOverlay")} submessage={t("savingOverlaySub")} />
           ) : null}
-          <h2 className="mb-3 text-lg font-semibold text-slate-900">Nuevo complemento</h2>
-          <p className="mb-3 text-xs text-slate-500">
-            <span className="font-semibold text-rose-600">*</span> obligatorio · Precio mayor a 0.
-          </p>
+          <h2 className="mb-3 text-lg font-semibold text-slate-900">{t("formTitle")}</h2>
+          <p className="mb-3 text-xs text-slate-500">{t("formHint")}</p>
           <form
             className="space-y-3"
             onSubmit={(e) => {
@@ -250,24 +262,24 @@ export default function AdminAddons() {
           >
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Nombre <span className="text-rose-600">*</span>
+                {t("labelName")} <span className="text-rose-600">*</span>
               </label>
               <input
                 className="w-full rounded-xl border border-slate-200 p-2.5"
-                placeholder="Ej. Aromaterapia"
+                placeholder={t("phName")}
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               />
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Precio (MXN) <span className="text-rose-600">*</span>
+                {t("labelPrice")} <span className="text-rose-600">*</span>
               </label>
               <input
                 type="text"
                 inputMode="decimal"
                 className="w-full rounded-xl border border-slate-200 p-2.5"
-                placeholder="Ej. 120"
+                placeholder={t("phPrice")}
                 value={form.priceStr}
                 onChange={(e) => setForm((f) => ({ ...f, priceStr: normalizePriceInput(e.target.value) }))}
               />
@@ -278,7 +290,7 @@ export default function AdminAddons() {
                 checked={form.active}
                 onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
               />
-              Activo (visible en reservas)
+              {t("activeCheck")}
             </label>
             <button
               type="submit"
@@ -288,10 +300,10 @@ export default function AdminAddons() {
               {saving ? (
                 <>
                   <BrandSpinner size="sm" />
-                  <span>Guardando…</span>
+                  <span>{t("saving")}</span>
                 </>
               ) : (
-                "Guardar complemento"
+                t("saveBtn")
               )}
             </button>
           </form>

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { errJson } from "@/lib/err-json";
 import { getStripe } from "@/lib/stripe";
 import { paymentIntentIdFromCheckoutSession } from "@/lib/stripeBooking";
 import type Stripe from "stripe";
@@ -11,7 +12,7 @@ export async function POST(req: Request) {
   const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
 
   if (!sessionId || Number.isNaN(bookingId)) {
-    return Response.json({ ok: false, error: "bookingId/sessionId inválidos" }, { status: 400 });
+    return errJson(400, "SYNC_BAD_INPUT", "bookingId/sessionId inválidos");
   }
 
   const stripe = getStripe();
@@ -19,12 +20,12 @@ export async function POST(req: Request) {
   try {
     session = await stripe.checkout.sessions.retrieve(sessionId);
   } catch {
-    return Response.json({ ok: false, error: "No se pudo recuperar el session en Stripe" }, { status: 400 });
+    return errJson(400, "STRIPE_SESSION_NOT_FOUND", "No se pudo recuperar el session en Stripe");
   }
 
   const sessionBookingId = session?.metadata?.bookingId;
   if (!sessionBookingId || Number(sessionBookingId) !== bookingId) {
-    return Response.json({ ok: false, error: "session_id no corresponde a esta reserva" }, { status: 400 });
+    return errJson(400, "SESSION_BOOKING_MISMATCH", "session_id no corresponde a esta reserva");
   }
 
   const isPaid = session.payment_status === "paid";

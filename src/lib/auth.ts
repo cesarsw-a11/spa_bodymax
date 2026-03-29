@@ -39,7 +39,11 @@ export async function requireAdmin(): Promise<Response | null> {
   const session = await getServerSession(authOptions);
   if (!session || (session.user as any)?.role !== "ADMIN") {
     return Response.json(
-      { ok: false, error: "No autorizado. Inicia sesión de nuevo como administrador." },
+      {
+        ok: false,
+        errorCode: "UNAUTHORIZED",
+        error: "No autorizado. Inicia sesión de nuevo como administrador.",
+      },
       { status: 401 },
     );
   }

@@ -1,9 +1,11 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { Service } from "@prisma/client";
 import { BrandSpinner, LoadingCard, LoadingOverlay } from "@/components/ui/BrandLoading";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/BrandFeedback";
 import { BrandPagination } from "@/components/ui/BrandPagination";
+import { resolveApiErrorMessage } from "@/lib/resolve-api-message";
 
 type ServiceWithImage = Service & { imageUrl?: string | null };
 
@@ -40,6 +42,8 @@ function normalizePriceInput(raw: string): string {
 type ListMeta = { page: number; limit: number; total: number; totalPages: number };
 
 export default function AdminServices() {
+  const t = useTranslations("adminServices");
+  const tApi = useTranslations("apiErrors");
   const [items, setItems] = useState<ServiceWithImage[]>([]);
   const [page, setPage] = useState(1);
   const [listMeta, setListMeta] = useState<ListMeta | null>(null);
@@ -61,14 +65,24 @@ export default function AdminServices() {
     active: true,
   });
 
-  const fetchServicesPage = useCallback(async (targetPage: number) => {
-    const r = await fetch(`/api/services?page=${targetPage}&limit=${PAGE_SIZE}`);
-    if (!r.ok) throw new Error("No se pudo cargar el catálogo de servicios.");
-    const j = await r.json();
-    const data = (j.data || []) as ServiceWithImage[];
-    const meta = j.meta as ListMeta | undefined;
-    return { data, meta: meta ?? null };
-  }, []);
+  const fetchServicesPage = useCallback(
+    async (targetPage: number) => {
+      const r = await fetch(`/api/services?page=${targetPage}&limit=${PAGE_SIZE}`);
+      const j = (await r.json().catch(() => ({}))) as {
+        data?: unknown;
+        meta?: ListMeta;
+        error?: string;
+        errorCode?: string;
+      };
+      if (!r.ok) {
+        throw new Error(resolveApiErrorMessage(j, tApi));
+      }
+      const data = (j.data || []) as ServiceWithImage[];
+      const meta = j.meta as ListMeta | undefined;
+      return { data, meta: meta ?? null };
+    },
+    [tApi],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -86,7 +100,7 @@ export default function AdminServices() {
         setListMeta(meta);
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Error al cargar servicios.");
+          setError(e instanceof Error ? e.message : t("loadListError"));
           setItems([]);
           setListMeta(null);
         }
@@ -97,7 +111,7 @@ export default function AdminServices() {
     return () => {
       cancelled = true;
     };
-  }, [page, fetchServicesPage]);
+  }, [page, fetchServicesPage, t]);
 
   async function refreshListAfterMutation() {
     try {
@@ -109,7 +123,7 @@ export default function AdminServices() {
       setItems(data);
       setListMeta(meta);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al cargar servicios.");
+      setError(e instanceof Error ? e.message : t("loadListError"));
     }
   }
   useEffect(() => {
@@ -148,11 +162,11 @@ export default function AdminServices() {
     const name = form.name.trim();
     const description = form.description.trim();
     if (!name) {
-      setError("El nombre del servicio es obligatorio.");
+      setError(t("nameRequired"));
       return;
     }
     if (!description) {
-      setError("La descripción es obligatoria.");
+      setError(t("descRequired"));
       return;
     }
 
@@ -161,11 +175,11 @@ export default function AdminServices() {
     const price = Number(priceNorm);
     const durationMin = Math.round(Number(durationNorm));
     if (priceNorm === "" || !Number.isFinite(price) || price <= 0) {
-      setError("El precio es obligatorio y debe ser mayor que 0.");
+      setError(t("priceRequired"));
       return;
     }
     if (durationNorm === "" || !Number.isFinite(durationMin) || durationMin < 1) {
-      setError("El tiempo en minutos es obligatorio. Usa un entero mayor o igual a 1.");
+      setError(t("durationRequired"));
       return;
     }
 
@@ -178,16 +192,16 @@ export default function AdminServices() {
         fd.append("file", imageFile);
         const uploadRes = await fetch("/api/uploads", { method: "POST", credentials: "include", body: fd });
         const uploadText = await uploadRes.text();
-        let uploadJson: { url?: string; error?: string } = {};
+        let uploadJson: { url?: string; error?: string; errorCode?: string } = {};
         if (uploadText.trim()) {
           try {
-            uploadJson = JSON.parse(uploadText) as { url?: string; error?: string };
+            uploadJson = JSON.parse(uploadText) as { url?: string; error?: string; errorCode?: string };
           } catch {
-            throw new Error("La subida de imagen devolvió una respuesta no válida. ¿Sigues con sesión de administrador?");
+            throw new Error(t("uploadInvalid"));
           }
         }
         if (!uploadRes.ok || !uploadJson?.url) {
-          throw new Error(uploadJson?.error || "No se pudo subir la imagen");
+          throw new Error(resolveApiErrorMessage(uploadJson, tApi));
         }
         imageUrl = uploadJson.url;
       }
@@ -209,21 +223,21 @@ export default function AdminServices() {
           body: JSON.stringify(payload),
         });
         const patchText = await patchRes.text();
-        let patchJson: { error?: string } = {};
+        let patchJson: { error?: string; errorCode?: string } = {};
         if (patchText.trim()) {
           try {
-            patchJson = JSON.parse(patchText) as { error?: string };
+            patchJson = JSON.parse(patchText) as { error?: string; errorCode?: string };
           } catch {
-            throw new Error("El servidor devolvió una respuesta que no es JSON. Vuelve a iniciar sesión e inténtalo de nuevo.");
+            throw new Error(t("serverNotJson"));
           }
         } else if (!patchRes.ok) {
-          throw new Error("Respuesta vacía del servidor. Vuelve a iniciar sesión e inténtalo de nuevo.");
+          throw new Error(t("serverEmpty"));
         }
-        if (!patchRes.ok) throw new Error(patchJson?.error || "No se pudo actualizar el servicio");
+        if (!patchRes.ok) throw new Error(resolveApiErrorMessage(patchJson, tApi));
 
         await refreshListAfterMutation();
         cancelEdit();
-        setSuccessMessage("Servicio actualizado correctamente.");
+        setSuccessMessage(t("updatedOk"));
       } else {
         const createRes = await fetch("/api/services", {
           method: "POST",
@@ -232,26 +246,26 @@ export default function AdminServices() {
           body: JSON.stringify(payload),
         });
         const createText = await createRes.text();
-        let createJson: { error?: string } = {};
+        let createJson: { error?: string; errorCode?: string } = {};
         if (createText.trim()) {
           try {
-            createJson = JSON.parse(createText) as { error?: string };
+            createJson = JSON.parse(createText) as { error?: string; errorCode?: string };
           } catch {
-            throw new Error("El servidor devolvió una respuesta que no es JSON. Vuelve a iniciar sesión e inténtalo de nuevo.");
+            throw new Error(t("serverNotJson"));
           }
         } else if (!createRes.ok) {
-          throw new Error("Respuesta vacía del servidor. Vuelve a iniciar sesión e inténtalo de nuevo.");
+          throw new Error(t("serverEmpty"));
         }
-        if (!createRes.ok) throw new Error(createJson?.error || "No se pudo crear el servicio");
+        if (!createRes.ok) throw new Error(resolveApiErrorMessage(createJson, tApi));
 
         await refreshListAfterMutation();
         setImageFile(null);
         setImagePreviewUrl(null);
         setForm({ name: "", description: "", imageUrl: "", priceStr: "", durationStr: "60", active: true });
-        setSuccessMessage("Servicio creado y guardado correctamente.");
+        setSuccessMessage(t("createdOk"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error inesperado al guardar");
+      setError(err instanceof Error ? err.message : t("saveUnexpected"));
     } finally {
       setSaving(false);
     }
@@ -268,33 +282,39 @@ export default function AdminServices() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active }),
       });
-      const json = await res.json().catch(() => null);
+      const json = (await res.json().catch(() => null)) as {
+        error?: string;
+        errorCode?: string;
+      } | null;
       if (!res.ok) {
-        setError(json?.error || "No se pudo actualizar el estado del servicio.");
+        setError(json ? resolveApiErrorMessage(json, tApi) : t("toggleFailed"));
         return;
       }
       await refreshListAfterMutation();
-      setSuccessMessage(active ? "Servicio activado." : "Servicio desactivado.");
+      setSuccessMessage(active ? t("activated") : t("deactivated"));
     } finally {
       setListBusy(false);
     }
   }
 
   async function removeService(id: number, name: string) {
-    const ok = window.confirm(`¿Seguro que deseas eliminar "${name}"? Esta acción no se puede deshacer.`);
+    const ok = window.confirm(t("deleteConfirm", { name }));
     if (!ok) return;
     setError(null);
     setSuccessMessage(null);
     setListBusy(true);
     try {
       const res = await fetch(`/api/services/${id}`, { method: "DELETE", credentials: "include" });
-      const json = await res.json().catch(() => null);
+      const json = (await res.json().catch(() => null)) as {
+        error?: string;
+        errorCode?: string;
+      } | null;
       if (!res.ok) {
-        setError(json?.error || "No se pudo eliminar el servicio");
+        setError(json ? resolveApiErrorMessage(json, tApi) : t("deleteFailed"));
         return;
       }
       await refreshListAfterMutation();
-      setSuccessMessage(`Se eliminó «${name}».`);
+      setSuccessMessage(t("deleted", { name }));
     } finally {
       setListBusy(false);
     }
@@ -311,7 +331,7 @@ export default function AdminServices() {
           <div className="pointer-events-auto flex w-full max-w-lg flex-col gap-2">
             {successMessage ? (
               <SuccessBanner
-                title="Listo"
+                title={t("bannerOk")}
                 message={successMessage}
                 onDismiss={() => setSuccessMessage(null)}
                 autoHideMs={5500}
@@ -320,7 +340,7 @@ export default function AdminServices() {
             ) : null}
             {error ? (
               <ErrorBanner
-                title="Acción no completada"
+                title={t("bannerErr")}
                 message={error}
                 onDismiss={() => setError(null)}
                 className="shadow-2xl shadow-rose-900/15 ring-1 ring-black/[0.06]"
@@ -333,21 +353,17 @@ export default function AdminServices() {
     <section className="grid gap-6 md:grid-cols-2">
       <div className="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         {listBusy ? (
-          <LoadingOverlay
-            fixed={false}
-            message="Actualizando servicios"
-            submessage="Aplicando cambios en el catálogo…"
-          />
+          <LoadingOverlay fixed={false} message={t("overlayUpdating")} submessage={t("overlayUpdatingSub")} />
         ) : null}
-        <h1 className="mb-3 text-xl font-semibold text-slate-900">Servicios</h1>
+        <h1 className="mb-3 text-xl font-semibold text-slate-900">{t("title")}</h1>
         {loadingList ? (
-          <LoadingCard message="Cargando catálogo de servicios…" className="border-0 bg-transparent py-10 shadow-none" />
+          <LoadingCard message={t("loadingCatalog")} className="border-0 bg-transparent py-10 shadow-none" />
         ) : (
         <>
         <ul className="space-y-3">
           {!loadingList && items.length === 0 ? (
             <li className="rounded-xl border border-dashed border-violet-200 bg-violet-50/40 p-6 text-center text-sm text-slate-600">
-              Aún no hay servicios. Crea el primero con el formulario de la derecha.
+              {t("emptyList")}
             </li>
           ) : null}
           {items.map((s) => (
@@ -356,10 +372,12 @@ export default function AdminServices() {
                 <div>
                   <div className="font-medium text-slate-900">{s.name}</div>
                   <div className="mt-1 text-sm text-slate-600">{s.description}</div>
-                  <div className="mt-2 text-sm text-slate-700">${Number(s.price).toFixed(2)} · Tiempo: {s.durationMin} minutos</div>
+                  <div className="mt-2 text-sm text-slate-700">
+                    {t("durationLine", { price: `$${Number(s.price).toFixed(2)}`, minutes: s.durationMin })}
+                  </div>
                   {s.imageUrl ? (
                     <a href={s.imageUrl} target="_blank" className="mt-2 inline-block text-xs font-medium text-violet-700 underline">
-                      Ver imagen
+                      {t("viewImage")}
                     </a>
                   ) : null}
                 </div>
@@ -368,7 +386,7 @@ export default function AdminServices() {
                     s.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
                   }`}
                 >
-                  {s.active ? "Activo" : "Inactivo"}
+                  {s.active ? t("active") : t("inactive")}
                 </span>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -378,7 +396,7 @@ export default function AdminServices() {
                   disabled={listBusy || saving}
                   className="cursor-pointer rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-medium text-violet-800 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Editar
+                  {t("edit")}
                 </button>
                 <button
                   type="button"
@@ -386,7 +404,7 @@ export default function AdminServices() {
                   disabled={listBusy}
                   className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {s.active ? "Desactivar" : "Activar"}
+                  {s.active ? t("deactivate") : t("activate")}
                 </button>
                 <button
                   type="button"
@@ -394,7 +412,7 @@ export default function AdminServices() {
                   disabled={listBusy}
                   className="cursor-pointer rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Eliminar
+                  {t("delete")}
                 </button>
               </div>
             </li>
@@ -408,7 +426,7 @@ export default function AdminServices() {
             pageSize={listMeta.limit}
             onPageChange={setPage}
             disabled={listBusy || loadingList}
-            itemLabel="servicios"
+            itemLabel={t("paginationLabel")}
           />
         ) : null}
         </>
@@ -419,17 +437,13 @@ export default function AdminServices() {
         {saving ? (
           <LoadingOverlay
             fixed={false}
-            message={editingId !== null ? "Actualizando servicio" : "Guardando servicio"}
-            submessage={
-              editingId !== null
-                ? "Subiendo imagen si aplica y guardando cambios…"
-                : "Subiendo imagen si aplica y registrando en la base de datos…"
-            }
+            message={editingId !== null ? t("savingUpdate") : t("savingCreate")}
+            submessage={editingId !== null ? t("savingUpdateSub") : t("savingCreateSub")}
           />
         ) : null}
         <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
           <h2 className="text-lg font-semibold text-slate-900">
-            {editingId !== null ? "Editar servicio" : "Nuevo servicio"}
+            {editingId !== null ? t("formEdit") : t("formNew")}
           </h2>
           {editingId !== null ? (
             <button
@@ -438,16 +452,14 @@ export default function AdminServices() {
               disabled={saving}
               className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Cancelar edición
+              {t("cancelEdit")}
             </button>
           ) : null}
         </div>
         <p className="mb-3 text-xs text-slate-500">
-          Los campos marcados con <span className="font-semibold text-rose-600">*</span> son obligatorios. La imagen es opcional.
+          {t("formHint")}
           {editingId !== null ? (
-            <span className="mt-1 block text-violet-700">
-              Estás editando el servicio #{editingId}. Si no eliges otra imagen, se mantiene la actual.
-            </span>
+            <span className="mt-1 block text-violet-700">{t("editingNote", { id: editingId })}</span>
           ) : null}
         </p>
         <form
@@ -459,30 +471,30 @@ export default function AdminServices() {
         >
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Nombre <span className="text-rose-600">*</span>
+              {t("labelName")} <span className="text-rose-600">*</span>
             </label>
             <input
               className="w-full rounded-xl border border-slate-200 p-2.5"
-              placeholder="Nombre del tratamiento"
+              placeholder={t("phName")}
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             />
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Descripción <span className="text-rose-600">*</span>
+              {t("labelDesc")} <span className="text-rose-600">*</span>
             </label>
             <textarea
               rows={3}
               className="w-full rounded-xl border border-slate-200 p-2.5"
-              placeholder="Describe el servicio"
+              placeholder={t("phDesc")}
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             />
           </div>
           <div className="space-y-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Imagen del servicio <span className="font-normal text-slate-400">(opcional)</span>
+              {t("labelImage")} <span className="font-normal text-slate-400">{t("imageOptional")}</span>
             </label>
             <input
               key={editingId ?? "new"}
@@ -500,39 +512,37 @@ export default function AdminServices() {
                 setImagePreviewUrl(preview);
               }}
             />
-            <p className="text-xs text-slate-500">
-              Formatos permitidos: JPEG/JPG (.jpg, .jpeg), PNG, WEBP, GIF. Tamaño máximo: 5MB.
-            </p>
+            <p className="text-xs text-slate-500">{t("imageFormats")}</p>
             {form.imageUrl && !imageFile ? (
               <button
                 type="button"
                 onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
                 className="text-xs font-medium text-rose-600 underline hover:text-rose-700"
               >
-                Quitar imagen actual (guardar sin foto)
+                {t("removeImage")}
               </button>
             ) : null}
             {imagePreviewUrl ? (
               <div className="overflow-hidden rounded-xl border border-slate-200">
-                <img src={imagePreviewUrl} alt="Vista previa" className="h-36 w-full object-cover" />
+                <img src={imagePreviewUrl} alt={t("previewAlt")} className="h-36 w-full object-cover" />
               </div>
             ) : form.imageUrl ? (
               <div className="overflow-hidden rounded-xl border border-slate-200">
-                <img src={form.imageUrl} alt="Imagen del servicio" className="h-36 w-full object-cover" />
+                <img src={form.imageUrl} alt={t("imageAlt")} className="h-36 w-full object-cover" />
               </div>
             ) : null}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Precio (MXN) <span className="text-rose-600">*</span>
+                {t("labelPrice")} <span className="text-rose-600">*</span>
               </label>
               <input
                 type="text"
                 inputMode="decimal"
                 autoComplete="off"
                 className="w-full rounded-xl border border-slate-200 p-2.5"
-                placeholder="Solo números, ej. 450 o 450.5"
+                placeholder={t("phPrice")}
                 value={form.priceStr}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, priceStr: normalizePriceInput(e.target.value) }))
@@ -542,7 +552,7 @@ export default function AdminServices() {
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Tiempo (minutos) <span className="text-rose-600">*</span>
+                {t("labelDuration")} <span className="text-rose-600">*</span>
               </label>
               <input
                 type="text"
@@ -559,12 +569,10 @@ export default function AdminServices() {
               />
             </div>
           </div>
-          <p className="text-xs text-slate-500">
-            Precio: mayor a 0, solo dígitos y un punto decimal (ej. 450.50). Tiempo: solo números enteros.
-          </p>
+          <p className="text-xs text-slate-500">{t("hintPrice")}</p>
           <label className="inline-flex items-center gap-2 text-sm text-slate-700">
             <input type="checkbox" checked={!!form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} />
-            Activo
+            {t("activeCheck")}
           </label>
           <button
             type="submit"
@@ -574,12 +582,12 @@ export default function AdminServices() {
             {saving ? (
               <>
                 <BrandSpinner size="sm" />
-                <span>Guardando…</span>
+                <span>{t("saving")}</span>
               </>
             ) : editingId !== null ? (
-              "Guardar cambios"
+              t("saveChanges")
             ) : (
-              "Guardar servicio"
+              t("saveService")
             )}
           </button>
         </form>

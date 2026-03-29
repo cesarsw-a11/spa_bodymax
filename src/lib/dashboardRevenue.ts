@@ -21,6 +21,7 @@ export type DailyRevenuePoint = {
 export function buildDailyRevenueSeries(
   bookings: { date: Date; price: unknown }[],
   daysInclusive: number,
+  dateLocale = "es-MX",
 ): DailyRevenuePoint[] {
   const end = new Date();
   end.setHours(23, 59, 59, 999);
@@ -43,8 +44,8 @@ export function buildDailyRevenueSeries(
     const raw = totals.get(k) ?? 0;
     series.push({
       date: k,
-      label: cursor.toLocaleDateString("es-MX", { day: "numeric", month: "short" }),
-      fullLabel: cursor.toLocaleDateString("es-MX", {
+      label: cursor.toLocaleDateString(dateLocale, { day: "numeric", month: "short" }),
+      fullLabel: cursor.toLocaleDateString(dateLocale, {
         weekday: "long",
         day: "numeric",
         month: "long",

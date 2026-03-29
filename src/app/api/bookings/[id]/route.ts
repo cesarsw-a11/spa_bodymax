@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { errJson } from "@/lib/err-json";
 import { requireAdmin } from "@/lib/auth";
 import { getStripe } from "@/lib/stripe";
 
@@ -20,9 +21,9 @@ function parseAddonIdsFromJson(raw: string | null | undefined): number[] {
 export async function GET(_req: Request, { params }: RouteContext) {
   const { id: rawId } = await params;
   const id = Number(rawId);
-  if (Number.isNaN(id)) return Response.json({ ok: false, error: "ID inválido" }, { status: 400 });
+  if (Number.isNaN(id)) return errJson(400, "INVALID_ID", "ID inválido");
   const data = await prisma.booking.findUnique({ where: { id }, include: { service: true } });
-  if (!data) return Response.json({ ok: false, error: "Reserva no encontrada" }, { status: 404 });
+  if (!data) return errJson(404, "BOOKING_NOT_FOUND", "Reserva no encontrada");
 
   const addonIds = parseAddonIdsFromJson(data.addonsJson);
   let addonNames: string[] = [];
@@ -43,18 +44,19 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   if (unauthorized) return unauthorized;
   const { id: rawId } = await params;
   const id = Number(rawId);
-  if (Number.isNaN(id)) return Response.json({ ok: false, error: "ID inválido" }, { status: 400 });
+  if (Number.isNaN(id)) return errJson(400, "INVALID_ID", "ID inválido");
   const body = await req.json();
   const nextStatus = body?.status as string | undefined;
 
   const booking = await prisma.booking.findUnique({ where: { id } });
-  if (!booking) return Response.json({ ok: false, error: "Reserva no encontrada" }, { status: 404 });
+  if (!booking) return errJson(404, "BOOKING_NOT_FOUND", "Reserva no encontrada");
 
   if (nextStatus === "CONFIRMED") {
     if (booking.status !== "PENDING") {
-      return Response.json(
-        { ok: false, error: "Solo se puede confirmar una reserva en estado PENDIENTE." },
-        { status: 409 },
+      return errJson(
+        409,
+        "CONFIRM_PENDING_ONLY",
+        "Solo se puede confirmar una reserva en estado PENDIENTE.",
       );
     }
     const data = await prisma.booking.update({ where: { id }, data: { status: "CONFIRMED" } });
@@ -63,7 +65,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
   if (nextStatus === "CANCELLED") {
     if (booking.status === "CANCELLED") {
-      return Response.json({ ok: false, error: "La reserva ya está cancelada." }, { status: 409 });
+      return errJson(409, "BOOKING_ALREADY_CANCELLED", "La reserva ya está cancelada.");
     }
 
     let refundId: string | null = null;
@@ -76,9 +78,10 @@ export async function PATCH(req: Request, { params }: RouteContext) {
         refundId = refund.id;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Error desconocido en Stripe";
-        return Response.json(
-          { ok: false, error: `No se pudo procesar el reembolso en Stripe: ${msg}` },
-          { status: 502 },
+        return errJson(
+          502,
+          "REFUND_STRIPE_FAILED",
+          `No se pudo procesar el reembolso en Stripe: ${msg}`,
         );
       }
     }
@@ -97,5 +100,5 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     });
   }
 
-  return Response.json({ ok: false, error: "Estado no válido. Usa CONFIRMED o CANCELLED." }, { status: 400 });
+  return errJson(400, "INVALID_STATUS", "Estado no válido. Usa CONFIRMED o CANCELLED.");
 }

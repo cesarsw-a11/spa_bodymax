@@ -1,15 +1,22 @@
 import { prisma } from "@/lib/prisma";
+import { errJson } from "@/lib/err-json";
 import { getStripe } from "@/lib/stripe";
+import type { AppLocale } from "@/i18n/routing";
 
 export const runtime = "nodejs";
+
+function parseLocale(raw: unknown): AppLocale {
+  return raw === "en" ? "en" : "es";
+}
 
 export async function POST(req: Request) {
   const body = await req.json();
   const bookingIdRaw = body.bookingId;
   const bookingId = Number(bookingIdRaw);
+  const locale = parseLocale(body.locale);
 
   if (!bookingIdRaw || Number.isNaN(bookingId)) {
-    return Response.json({ ok: false, error: "bookingId inválido" }, { status: 400 });
+    return errJson(400, "INVALID_BOOKING_ID", "bookingId inválido");
   }
 
   const booking = await prisma.booking.findUnique({
@@ -17,15 +24,16 @@ export async function POST(req: Request) {
     include: { service: true },
   });
 
-  if (!booking) return Response.json({ ok: false, error: "Reserva no encontrada" }, { status: 404 });
+  if (!booking) return errJson(404, "BOOKING_NOT_FOUND", "Reserva no encontrada");
   if (booking.status !== "PENDING") {
-    return Response.json(
-      { ok: false, error: `La reserva no está lista para pagar (status=${booking.status})` },
-      { status: 409 }
+    return errJson(
+      409,
+      "BOOKING_NOT_PAYABLE",
+      `La reserva no está lista para pagar (status=${booking.status})`,
     );
   }
   if (!booking.service || !booking.service.active) {
-    return Response.json({ ok: false, error: "Servicio no disponible" }, { status: 400 });
+    return errJson(400, "SERVICE_UNAVAILABLE", "Servicio no disponible");
   }
 
   const priceValue = booking.price as unknown;
@@ -36,8 +44,8 @@ export async function POST(req: Request) {
   const amountCents = Math.round(priceNumber * 100);
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
-  const successUrl = `${baseUrl}/reserve/confirmacion?bookingId=${encodeURIComponent(String(booking.id))}&session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${baseUrl}/reserve/confirmacion?bookingId=${encodeURIComponent(String(booking.id))}&cancelled=1&session_id={CHECKOUT_SESSION_ID}`;
+  const successUrl = `${baseUrl}/${locale}/reserve/confirmacion?bookingId=${encodeURIComponent(String(booking.id))}&session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${baseUrl}/${locale}/reserve/confirmacion?bookingId=${encodeURIComponent(String(booking.id))}&cancelled=1&session_id={CHECKOUT_SESSION_ID}`;
 
   const stripe = getStripe();
   const session = await stripe.checkout.sessions.create({
@@ -62,9 +70,8 @@ export async function POST(req: Request) {
   });
 
   if (!session.url) {
-    return Response.json({ ok: false, error: "No se pudo crear la sesión de pago" }, { status: 500 });
+    return errJson(500, "STRIPE_NO_URL", "No se pudo crear la sesión de pago");
   }
 
   return Response.json({ ok: true, url: session.url });
 }
-

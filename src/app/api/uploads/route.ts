@@ -1,4 +1,5 @@
 import { put } from "@vercel/blob";
+import { errJson } from "@/lib/err-json";
 import { requireAdmin } from "@/lib/auth";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -43,22 +44,20 @@ export async function POST(req: Request) {
   const form = await req.formData();
   const file = form.get("file");
   if (!(file instanceof File)) {
-    return Response.json({ ok: false, error: "Archivo no recibido" }, { status: 400 });
+    return errJson(400, "FILE_MISSING", "Archivo no recibido");
   }
 
   const mime = effectiveImageMime(file);
   if (!mime) {
-    return Response.json(
-      { ok: false, error: "Formato no permitido. Usa JPEG/JPG, PNG, WEBP o GIF." },
-      { status: 400 },
+    return errJson(
+      400,
+      "IMAGE_FORMAT",
+      "Formato no permitido. Usa JPEG/JPG, PNG, WEBP o GIF.",
     );
   }
 
   if (file.size <= 0 || file.size > MAX_FILE_SIZE_BYTES) {
-    return Response.json(
-      { ok: false, error: "El archivo debe pesar entre 1 byte y 5MB." },
-      { status: 400 },
-    );
+    return errJson(400, "IMAGE_SIZE", "El archivo debe pesar entre 1 byte y 5MB.");
   }
 
   const bytes = await file.arrayBuffer();

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { errJson } from "@/lib/err-json";
 import { requireAdmin } from "@/lib/auth";
 
 function parsePagination(searchParams: URLSearchParams) {
@@ -49,28 +50,29 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return Response.json({ ok: false, error: "Cuerpo de la petición no válido (JSON esperado)." }, { status: 400 });
+    return errJson(400, "INVALID_BODY", "Cuerpo de la petición no válido (JSON esperado).");
   }
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const description = typeof body.description === "string" ? body.description.trim() : "";
   if (!name) {
-    return Response.json({ ok: false, error: "El nombre es obligatorio." }, { status: 400 });
+    return errJson(400, "NAME_REQUIRED", "El nombre es obligatorio.");
   }
   if (!description) {
-    return Response.json({ ok: false, error: "La descripción es obligatoria." }, { status: 400 });
+    return errJson(400, "DESC_REQUIRED", "La descripción es obligatoria.");
   }
 
   const price = Number(body.price);
   if (!Number.isFinite(price) || price <= 0) {
-    return Response.json({ ok: false, error: "El precio debe ser un número mayor que 0." }, { status: 400 });
+    return errJson(400, "PRICE_INVALID", "El precio debe ser un número mayor que 0.");
   }
 
   const durationMin = Math.round(Number(body.durationMin));
   if (!Number.isFinite(durationMin) || durationMin < 1) {
-    return Response.json(
-      { ok: false, error: "La duración debe ser un entero mayor o igual a 1 (minutos)." },
-      { status: 400 },
+    return errJson(
+      400,
+      "DURATION_INVALID",
+      "La duración debe ser un entero mayor o igual a 1 (minutos).",
     );
   }
 
@@ -88,6 +90,6 @@ export async function POST(req: Request) {
     return Response.json({ ok: true, data });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Error al guardar en la base de datos.";
-    return Response.json({ ok: false, error: message }, { status: 500 });
+    return errJson(500, "DB_ERROR", message);
   }
 }

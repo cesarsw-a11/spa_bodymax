@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { errJson } from "@/lib/err-json";
 import { computeEnd, computeDynamicPrice } from "@/lib/utils";
 import { isTenDigitPhone, isValidEmailFormat, normalizePhoneDigits } from "@/lib/validation";
 
@@ -55,9 +56,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const body = await req.json();
   const service = await prisma.service.findUnique({ where: { id: Number(body.serviceId) } });
-  if (!service || !service.active) return Response.json({ ok: false, error: "Servicio no disponible" }, { status: 400 });
+  if (!service || !service.active)
+    return errJson(400, "SERVICE_UNAVAILABLE", "Servicio no disponible");
   const start = new Date(body.date);
-  if (isNaN(start.getTime())) return Response.json({ ok: false, error: "Fecha inválida" }, { status: 400 });
+  if (isNaN(start.getTime())) return errJson(400, "INVALID_DATE", "Fecha inválida");
   const end = computeEnd(start, service.durationMin);
   const rawAddonIds = parseAddonIdsFromBody(body.addons);
 
@@ -69,9 +71,10 @@ export async function POST(req: Request) {
       where: { id: { in: rawAddonIds }, active: true },
     });
     if (addonRows.length !== rawAddonIds.length) {
-      return Response.json(
-        { ok: false, error: "Uno o más complementos no existen o no están disponibles." },
-        { status: 400 },
+      return errJson(
+        400,
+        "ADDON_INVALID",
+        "Uno o más complementos no existen o no están disponibles.",
       );
     }
     addonsTotal = Math.round(
@@ -85,24 +88,24 @@ export async function POST(req: Request) {
 
   // verificar disponibilidad rápida (servidor)
   const conflict = await prisma.booking.findFirst({ where: { serviceId: service.id, status: { in: ["PENDING", "CONFIRMED"] }, AND: [ { date: { lt: end } }, { endDate: { gt: start } } ] } });
-  if (conflict) return Response.json({ ok: false, error: "Horario ocupado" }, { status: 409 });
+  if (conflict) return errJson(409, "SLOT_TAKEN", "Horario ocupado");
 
   const block = await prisma.blockedSlot.findFirst({ where: { AND: [ { start: { lt: end } }, { end: { gt: start } } ] } });
-  if (block) return Response.json({ ok: false, error: block.reason || "Bloqueado" }, { status: 409 });
+  if (block) return errJson(409, "BLOCKED", block.reason || "Bloqueado");
 
   const customer = typeof body.customer === "string" ? body.customer.trim() : "";
   if (!customer) {
-    return Response.json({ ok: false, error: "El nombre es obligatorio." }, { status: 400 });
+    return errJson(400, "NAME_REQUIRED", "El nombre es obligatorio.");
   }
 
   const phoneDigits = normalizePhoneDigits(String(body.phone ?? ""));
   if (!isTenDigitPhone(phoneDigits)) {
-    return Response.json({ ok: false, error: "El teléfono debe tener exactamente 10 dígitos." }, { status: 400 });
+    return errJson(400, "PHONE_TEN_DIGITS", "El teléfono debe tener exactamente 10 dígitos.");
   }
 
   const emailTrim = typeof body.email === "string" ? body.email.trim() : "";
   if (!isValidEmailFormat(emailTrim)) {
-    return Response.json({ ok: false, error: "Indica un correo electrónico válido." }, { status: 400 });
+    return errJson(400, "INVALID_EMAIL", "Indica un correo electrónico válido.");
   }
 
   const notes =

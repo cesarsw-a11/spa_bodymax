@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { errJson } from "@/lib/err-json";
 import { requireAdmin } from "@/lib/auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -9,13 +10,13 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
   const { id: rawId } = await params;
   const id = Number(rawId);
   if (Number.isNaN(id)) {
-    return Response.json({ ok: false, error: "ID inválido" }, { status: 400 });
+    return errJson(400, "INVALID_ID", "ID inválido");
   }
 
   try {
     await prisma.blockedSlot.delete({ where: { id } });
   } catch {
-    return Response.json({ ok: false, error: "Bloqueo no encontrado" }, { status: 404 });
+    return errJson(404, "BLOCK_NOT_FOUND", "Bloqueo no encontrado");
   }
 
   return Response.json({ ok: true });

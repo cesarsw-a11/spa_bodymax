@@ -1,13 +1,16 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import RetryPaymentButton from "./RetryPaymentButton";
 import { LoadingCard, LoadingInline } from "@/components/ui/BrandLoading";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/BrandFeedback";
 import { buildBookingWhatsAppMessage, mexicoWaMeUrlFromTenDigitPhone } from "@/lib/bookingWhatsApp";
 import { isTenDigitPhone, normalizePhoneDigits } from "@/lib/validation";
+import { resolveApiErrorMessage } from "@/lib/resolve-api-message";
+import type { AppLocale } from "@/i18n/routing";
 
 type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED";
 
@@ -29,9 +32,14 @@ type BookingApiResponse = {
   ok: boolean;
   data?: Booking;
   error?: string;
+  errorCode?: string;
 };
 
 function ConfirmacionContent() {
+  const t = useTranslations("confirmacion");
+  const tApi = useTranslations("apiErrors");
+  const locale = useLocale() as AppLocale;
+  const dateLocale = locale === "en" ? "en-US" : "es-MX";
   const searchParams = useSearchParams();
   const bookingIdStr = searchParams.get("bookingId") ?? searchParams.get("folio");
   const cancelledFlag = searchParams.get("cancelled");
@@ -53,25 +61,25 @@ function ConfirmacionContent() {
   const loadBooking = useCallback(async () => {
     if (Number.isNaN(bookingId)) {
       setBooking(null);
-      setError("Identificador de reserva inválido (bookingId/folio).");
+      setError(t("invalidId"));
       setLoading(false);
       return;
     }
     setError(null);
     try {
       const res = await fetch(`/api/bookings/${bookingId}`);
-      const json: BookingApiResponse = await res.json();
+      const json = (await res.json()) as BookingApiResponse;
       if (!res.ok || !json?.ok || !json?.data) {
-        throw new Error(json?.error || "Error cargando la reserva");
+        throw new Error(resolveApiErrorMessage(json, tApi));
       }
       setBooking(json.data);
       return json.data?.status;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error cargando la reserva");
+      setError(err instanceof Error ? err.message : t("loadErr"));
     } finally {
       setLoading(false);
     }
-  }, [bookingId]);
+  }, [bookingId, t, tApi]);
 
   useEffect(() => {
     if (!bookingIdStr) return;
@@ -84,8 +92,8 @@ function ConfirmacionContent() {
     if (bookingIdStr) return;
     setLoading(false);
     setBooking(null);
-    setError("No se recibió el identificador de la reserva (bookingId/folio).");
-  }, [bookingIdStr]);
+    setError(t("noId"));
+  }, [bookingIdStr, t]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -101,26 +109,27 @@ function ConfirmacionContent() {
           body: JSON.stringify({ bookingId, sessionId }),
         });
         if (syncRes.ok) {
-          setSyncNotice({ type: "success", text: "Hemos sincronizado tu pago con la reserva." });
+          setSyncNotice({ type: "success", text: t("syncOk") });
         } else {
-          const body = await syncRes.json().catch(() => null);
+          const body = (await syncRes.json().catch(() => null)) as {
+            error?: string;
+            errorCode?: string;
+          } | null;
           setSyncNotice({
             type: "error",
-            text: (body && typeof body === "object" && "error" in body && typeof (body as { error?: string }).error === "string"
-              ? (body as { error: string }).error
-              : "No pudimos sincronizar el pago de inmediato; seguiremos comprobando el estado."),
+            text: body ? resolveApiErrorMessage(body, tApi) : t("syncErrGeneric"),
           });
         }
       } catch {
         setSyncNotice({
           type: "error",
-          text: "No pudimos contactar al servidor para sincronizar el pago. Actualiza la página en unos segundos.",
+          text: t("syncNetwork"),
         });
       } finally {
         await loadBooking();
       }
     })();
-  }, [sessionId, bookingId, syncedWithStripe, loadBooking]);
+  }, [sessionId, bookingId, syncedWithStripe, loadBooking, t, tApi]);
 
   useEffect(() => {
     if (Number.isNaN(bookingId)) return;
@@ -151,46 +160,45 @@ function ConfirmacionContent() {
       booking.addonNames && booking.addonNames.length > 0 ? booking.addonNames.join(", ") : null;
     const paymentStatusLine =
       booking.status === "CONFIRMED"
-        ? "Pago confirmado. ¡Te esperamos en Body Max Spa!"
+        ? t("paymentConfirmed")
         : booking.status === "CANCELLED"
-          ? "Esta reserva no se completó. Contáctanos si necesitas ayuda."
-          : "Si aún debes pagar, usa el botón de reintentar pago más abajo.";
+          ? t("paymentCancelled")
+          : t("paymentPending");
     const text = buildBookingWhatsAppMessage({
       bookingId: booking.id,
-      customerName: (booking.customer ?? "Cliente").trim() || "Cliente",
+      customerName: (booking.customer ?? t("customer")).trim() || t("customer"),
       email: booking.email ?? undefined,
       phoneTenDigits: ten,
-      serviceName: booking.service?.name ?? "Servicio",
+      serviceName: booking.service?.name ?? t("serviceFallback"),
       dateStart: start,
       dateEnd: end && !isNaN(end.getTime()) ? end : null,
       addonSummary,
       totalMxn: Number(booking.price),
       notes: booking.notes,
       paymentStatusLine,
+      locale,
     });
     return mexicoWaMeUrlFromTenDigitPhone(ten, text);
-  }, [booking]);
+  }, [booking, t, locale]);
 
   return (
     <div className="mx-auto max-w-3xl p-4">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <h1 className="text-2xl font-semibold text-slate-900">Confirmación de tu reserva</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">{t("title")}</h1>
         <Link
           href="/"
           className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-violet-200 hover:bg-violet-50/60 hover:text-violet-800"
         >
-          ← Volver a la página principal
+          {t("backHome")}
         </Link>
       </div>
 
-      {loading && (
-        <LoadingCard message="Cargando los detalles de tu reserva…" className="mt-4" />
-      )}
+      {loading && <LoadingCard message={t("loading")} className="mt-4" />}
 
       {error ? (
         <ErrorBanner
           className="mt-4"
-          title="Algo salió mal"
+          title={t("errTitle")}
           message={error}
           onDismiss={() => setError(null)}
         />
@@ -199,7 +207,7 @@ function ConfirmacionContent() {
       {syncNotice?.type === "success" ? (
         <SuccessBanner
           className="mt-4"
-          title="Listo"
+          title={t("readyTitle")}
           message={syncNotice.text}
           onDismiss={() => setSyncNotice(null)}
           autoHideMs={6000}
@@ -208,7 +216,7 @@ function ConfirmacionContent() {
       {syncNotice?.type === "error" ? (
         <ErrorBanner
           className="mt-4"
-          title="Sincronización"
+          title={t("syncBannerTitle")}
           message={syncNotice.text}
           onDismiss={() => setSyncNotice(null)}
         />
@@ -216,9 +224,9 @@ function ConfirmacionContent() {
 
       {!loading && booking && whatsappResumeUrl ? (
         <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
-          <p className="text-sm font-medium text-emerald-900">Resumen en tu WhatsApp</p>
+          <p className="text-sm font-medium text-emerald-900">{t("waTitle")}</p>
           <p className="mt-1 text-sm text-emerald-800/90">
-            Abre un chat contigo (o guarda el mensaje) con los datos de esta reserva en el número{" "}
+            {t("waDesc")}{" "}
             <span className="font-mono tabular-nums">+52 {normalizePhoneDigits(String(booking.phone ?? ""))}</span>.
           </p>
           <a
@@ -227,7 +235,7 @@ function ConfirmacionContent() {
             rel="noopener noreferrer"
             className="mt-3 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-[#20BD5A]"
           >
-            Enviar detalles por WhatsApp
+            {t("waBtn")}
           </a>
         </div>
       ) : null}
@@ -236,17 +244,20 @@ function ConfirmacionContent() {
         <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm text-slate-500">Reserva #{booking.id}</p>
-              <p className="font-medium text-slate-900">{booking.service?.name ?? "Servicio"}</p>
+              <p className="text-sm text-slate-500">{t("bookingNum", { id: booking.id })}</p>
+              <p className="font-medium text-slate-900">{booking.service?.name ?? t("serviceFallback")}</p>
               <p className="text-sm text-slate-600">
-                {booking.date ? new Date(booking.date).toLocaleString() : "—"}
+                {booking.date ? new Date(booking.date).toLocaleString(dateLocale) : "—"}
               </p>
               <p className="text-sm text-slate-600">
-                Total: <span className="font-semibold text-slate-900">${Number(booking.price).toFixed(2)} MXN</span>
+                {t("total")}{" "}
+                <span className="font-semibold text-slate-900">
+                  ${Number(booking.price).toFixed(2)} {t("mxn")}
+                </span>
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Estado</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">{t("status")}</p>
               <p
                 className={`mt-1 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
                   booking.status === "CONFIRMED"
@@ -256,50 +267,47 @@ function ConfirmacionContent() {
                       : "bg-amber-50 text-amber-700"
                 }`}
               >
-                {booking.status}
+                {booking.status === "CONFIRMED"
+                  ? t("status_CONFIRMED")
+                  : booking.status === "CANCELLED"
+                    ? t("status_CANCELLED")
+                    : t("status_PENDING")}
               </p>
             </div>
           </div>
 
           {booking.status === "CONFIRMED" && (
             <div className="mt-4 space-y-4">
-              <SuccessBanner
-                title="¡Pago confirmado!"
-                message="Tu cita ya está registrada. Te esperamos en Body Max Spa."
-              />
-              <a
+              <SuccessBanner title={t("paidTitle")} message={t("paidMsg")} />
+              <Link
                 href="/reserve"
                 className="mt-4 inline-flex rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
               >
-                Hacer otra reserva
-              </a>
+                {t("anotherBooking")}
+              </Link>
             </div>
           )}
 
           {booking.status === "CANCELLED" && (
             <div className="mt-4 space-y-4">
               <ErrorBanner
-                title="Reserva no completada"
-                message={
-                  cancelledFlag
-                    ? "El pago fue cancelado. Puedes intentar de nuevo con el botón de abajo o crear una nueva reserva."
-                    : "No se pudo completar el pago de esta reserva. Puedes intentar de nuevo o agendar otra cita."
-                }
+                title={t("cancelTitle")}
+                message={cancelledFlag ? t("cancelMsgStripe") : t("cancelMsgGeneric")}
               />
-              <a
+              <Link
                 href="/reserve"
                 className="mt-4 inline-flex rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
               >
-                Volver a reservar
-              </a>
+                {t("backReserve")}
+              </Link>
             </div>
           )}
 
           {booking.status === "PENDING" && (
             <div className="mt-4">
               <div className="space-y-2 text-slate-700">
-                <p>Tu pago está pendiente. En algunos casos puede tardar unos segundos.</p>
-                {polling ? <LoadingInline message="Verificando estado del pago…" /> : null}
+                <p>{t("pendingMsg")}</p>
+                {polling ? <LoadingInline message={t("checkingPay")} /> : null}
               </div>
               <RetryPaymentButton bookingId={booking.id} />
             </div>
@@ -310,17 +318,19 @@ function ConfirmacionContent() {
   );
 }
 
+function ConfirmacionSuspenseFallback() {
+  const t = useTranslations("confirmacion");
+  return (
+    <div className="mx-auto max-w-3xl p-4">
+      <LoadingCard message={t("suspense")} />
+    </div>
+  );
+}
+
 export default function ConfirmacionPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="mx-auto max-w-3xl p-4">
-          <LoadingCard message="Preparando la confirmación…" />
-        </div>
-      }
-    >
+    <Suspense fallback={<ConfirmacionSuspenseFallback />}>
       <ConfirmacionContent />
     </Suspense>
   );
 }
-

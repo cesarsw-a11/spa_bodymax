@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-
-const DEFAULT_WA_MESSAGE =
-  "Hola, me gustaría información sobre Body Max Spa y disponibilidad para una cita.";
+import { useTranslations } from "next-intl";
 
 function digitsOnly(phone: string | undefined) {
   return (phone ?? "").replace(/\D/g, "") || "5215555555555";
@@ -26,13 +24,14 @@ function IconX({ className }: { className?: string }) {
 }
 
 export default function WhatsAppFloat() {
+  const t = useTranslations("whatsAppFloat");
   const waPhone = digitsOnly(process.env.NEXT_PUBLIC_WHATSAPP_E164);
   const defaultWaFromEnv = process.env.NEXT_PUBLIC_CONTACT_WHATSAPP_DEFAULT?.trim();
 
   const [open, setOpen] = useState(false);
   const [contactName, setContactName] = useState("");
   const [nameError, setNameError] = useState(false);
-  const [waMessage, setWaMessage] = useState(DEFAULT_WA_MESSAGE);
+  const [waMessage, setWaMessage] = useState(defaultWaFromEnv || t("defaultMessage"));
 
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -43,9 +42,9 @@ export default function WhatsAppFloat() {
   const openModal = useCallback(() => {
     setContactName("");
     setNameError(false);
-    setWaMessage(defaultWaFromEnv || DEFAULT_WA_MESSAGE);
+    setWaMessage(defaultWaFromEnv || t("defaultMessage"));
     setOpen(true);
-  }, [defaultWaFromEnv]);
+  }, [defaultWaFromEnv, t]);
 
   useEffect(() => {
     if (!open) return;
@@ -62,10 +61,10 @@ export default function WhatsAppFloat() {
 
   useEffect(() => {
     if (!open) return;
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       panelRef.current?.querySelector<HTMLInputElement>("#float-wa-contact-name")?.focus();
     }, 50);
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(timer);
   }, [open]);
 
   const sendWhatsApp = () => {
@@ -75,8 +74,8 @@ export default function WhatsAppFloat() {
       return;
     }
     setNameError(false);
-    const main = waMessage.trim() || DEFAULT_WA_MESSAGE;
-    const text = `Hola, soy ${name}.\n\n${main}`;
+    const main = waMessage.trim() || t("defaultMessage");
+    const text = `${t("intro", { name })}\n\n${main}`;
     const url = `https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank", "noopener,noreferrer");
     close();
@@ -93,8 +92,8 @@ export default function WhatsAppFloat() {
       <button
         type="button"
         onClick={openModal}
-        className="fixed z-[90] flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-emerald-900/35 transition hover:scale-105 hover:bg-[#20BD5A] hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 active:scale-95 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 bottom-[max(1.5rem,env(safe-area-inset-bottom,0px))] right-[max(1.5rem,env(safe-area-inset-right,0px))]"
-        aria-label="Contactar por WhatsApp"
+        className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom,0px))] right-[max(1.5rem,env(safe-area-inset-right,0px))] z-[90] flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-emerald-900/35 transition hover:scale-105 hover:bg-[#20BD5A] hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 active:scale-95 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
+        aria-label={t("aria")}
       >
         <IconWhatsApp className="h-7 w-7" />
       </button>
@@ -107,10 +106,7 @@ export default function WhatsAppFloat() {
             if (e.target === e.currentTarget) close();
           }}
         >
-          <div
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm motion-reduce:backdrop-blur-none"
-            aria-hidden
-          />
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm motion-reduce:backdrop-blur-none" aria-hidden />
           <div
             ref={panelRef}
             role="dialog"
@@ -126,10 +122,10 @@ export default function WhatsAppFloat() {
                 </span>
                 <div>
                   <h2 id={titleId} className="text-lg font-semibold text-white">
-                    WhatsApp
+                    {t("title")}
                   </h2>
                   <p id={descId} className="text-xs text-violet-200/65">
-                    Tu mensaje se abrirá en WhatsApp hacia +{waPhone}
+                    {t("desc", { phone: waPhone })}
                   </p>
                 </div>
               </div>
@@ -137,7 +133,7 @@ export default function WhatsAppFloat() {
                 type="button"
                 onClick={close}
                 className="cursor-pointer rounded-lg p-2 text-violet-200/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-                aria-label="Cerrar"
+                aria-label={t("close")}
               >
                 <IconX className="h-5 w-5" />
               </button>
@@ -146,7 +142,7 @@ export default function WhatsAppFloat() {
             <div className="mt-5 space-y-4">
               <div>
                 <label htmlFor="float-wa-contact-name" className="mb-1.5 block text-xs font-medium text-violet-200/90">
-                  Tu nombre <span className="text-rose-300/90">*</span>
+                  {t("yourName")} <span className="text-rose-300/90">*</span>
                 </label>
                 <input
                   id="float-wa-contact-name"
@@ -158,19 +154,19 @@ export default function WhatsAppFloat() {
                     if (nameError) setNameError(false);
                   }}
                   className={nameInputClass}
-                  placeholder="Ej. María González"
+                  placeholder={t("namePlaceholder")}
                   aria-invalid={nameError}
                   aria-describedby={nameError ? "float-wa-name-error" : undefined}
                 />
                 {nameError ? (
                   <p id="float-wa-name-error" className="mt-1.5 text-xs text-rose-300/90" role="alert">
-                    Escribe tu nombre para continuar.
+                    {t("nameError")}
                   </p>
                 ) : null}
               </div>
               <div>
                 <label htmlFor="float-wa-msg" className="mb-1.5 block text-xs font-medium text-violet-200/90">
-                  Tu mensaje
+                  {t("yourMessage")}
                 </label>
                 <textarea
                   id="float-wa-msg"
@@ -178,7 +174,7 @@ export default function WhatsAppFloat() {
                   value={waMessage}
                   onChange={(e) => setWaMessage(e.target.value)}
                   className="w-full resize-y rounded-xl border border-violet-400/20 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-violet-300/40 focus:border-violet-400/50 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
-                  placeholder="Ej. Quisiera reservar un masaje relajante el sábado…"
+                  placeholder={t("messagePlaceholder")}
                 />
               </div>
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -187,7 +183,7 @@ export default function WhatsAppFloat() {
                   onClick={close}
                   className="cursor-pointer rounded-full border border-violet-400/30 px-4 py-2.5 text-sm font-medium text-violet-100 transition hover:bg-white/5"
                 >
-                  Cancelar
+                  {t("cancel")}
                 </button>
                 <button
                   type="button"
@@ -195,7 +191,7 @@ export default function WhatsAppFloat() {
                   className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/40 transition hover:bg-emerald-500"
                 >
                   <IconWhatsApp className="h-4 w-4" />
-                  Abrir WhatsApp
+                  {t("open")}
                 </button>
               </div>
             </div>

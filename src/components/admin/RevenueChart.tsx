@@ -9,29 +9,33 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useLocale, useTranslations } from "next-intl";
 import type { DailyRevenuePoint } from "@/lib/dashboardRevenue";
 
 type Props = {
   data: DailyRevenuePoint[];
-  /** Texto bajo el título, ej. rango de fechas */
   subtitle?: string;
 };
 
 export default function RevenueChart({ data, subtitle }: Props) {
+  const t = useTranslations("revenueChart");
+  const locale = useLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-MX";
   const totalPeriod = data.reduce((s, d) => s + d.ingresos, 0);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-base font-semibold text-slate-900">Ingresos por fecha</h2>
+          <h2 className="text-base font-semibold text-slate-900">{t("chartTitle")}</h2>
           <p className="mt-0.5 text-sm text-slate-500">
-            Suma diaria de reservas <span className="font-medium text-emerald-700">confirmadas</span>
+            {t("chartSubtitle")}{" "}
+            <span className="font-medium text-emerald-700">{t("confirmed")}</span>
             {subtitle ? ` · ${subtitle}` : null}
           </p>
         </div>
         <div className="mt-2 text-right sm:mt-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Total en el periodo</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t("totalPeriod")}</p>
           <p className="text-xl font-bold tabular-nums text-violet-700">${totalPeriod.toFixed(2)} MXN</p>
         </div>
       </div>
@@ -58,7 +62,7 @@ export default function RevenueChart({ data, subtitle }: Props) {
               tick={{ fontSize: 11, fill: "#64748b" }}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v) => `$${Number(v).toLocaleString("es-MX", { maximumFractionDigits: 0 })}`}
+              tickFormatter={(v) => `$${Number(v).toLocaleString(dateLocale, { maximumFractionDigits: 0 })}`}
               width={56}
             />
             <Tooltip
@@ -68,10 +72,7 @@ export default function RevenueChart({ data, subtitle }: Props) {
                 boxShadow: "0 10px 40px -12px rgba(15, 23, 42, 0.2)",
               }}
               labelStyle={{ fontWeight: 600, color: "#0f172a", marginBottom: 4 }}
-              formatter={(value: number | string) => [
-                `$${Number(value).toFixed(2)} MXN`,
-                "Ingresos del día",
-              ]}
+              formatter={(value: number | string) => [`$${Number(value).toFixed(2)} MXN`, t("tooltipSeries")]}
               labelFormatter={(_label, payload) => {
                 const row = payload?.[0]?.payload as DailyRevenuePoint | undefined;
                 return row?.fullLabel ?? "";
@@ -80,7 +81,7 @@ export default function RevenueChart({ data, subtitle }: Props) {
             <Area
               type="monotone"
               dataKey="ingresos"
-              name="Ingresos"
+              name={t("tooltipSeries")}
               stroke="#6d28d9"
               strokeWidth={2}
               fill="url(#revenueFill)"

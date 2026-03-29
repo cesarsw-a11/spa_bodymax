@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { errJson } from "@/lib/err-json";
 import { requireAdmin } from "@/lib/auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -17,13 +18,13 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
   const { id: rawId } = await params;
   const id = Number(rawId);
-  if (Number.isNaN(id)) return Response.json({ ok: false, error: "ID inválido" }, { status: 400 });
+  if (Number.isNaN(id)) return errJson(400, "INVALID_ID", "ID inválido");
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
-    return Response.json({ ok: false, error: "Cuerpo de la petición no válido (JSON esperado)." }, { status: 400 });
+    return errJson(400, "INVALID_BODY", "Cuerpo de la petición no válido (JSON esperado).");
   }
 
   const data: {
@@ -42,7 +43,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   if ("name" in body) {
     const name = typeof body.name === "string" ? body.name.trim() : "";
     if (!name) {
-      return Response.json({ ok: false, error: "El nombre no puede estar vacío." }, { status: 400 });
+      return errJson(400, "NAME_EMPTY", "El nombre no puede estar vacío.");
     }
     data.name = name;
   }
@@ -50,7 +51,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   if ("description" in body) {
     const description = typeof body.description === "string" ? body.description.trim() : "";
     if (!description) {
-      return Response.json({ ok: false, error: "La descripción no puede estar vacía." }, { status: 400 });
+      return errJson(400, "DESC_EMPTY", "La descripción no puede estar vacía.");
     }
     data.description = description;
   }
@@ -58,7 +59,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   if ("price" in body) {
     const price = Number(body.price);
     if (!Number.isFinite(price) || price <= 0) {
-      return Response.json({ ok: false, error: "El precio debe ser un número mayor que 0." }, { status: 400 });
+      return errJson(400, "PRICE_INVALID", "El precio debe ser un número mayor que 0.");
     }
     data.price = price;
   }
@@ -66,9 +67,10 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   if ("durationMin" in body) {
     const durationMin = Math.round(Number(body.durationMin));
     if (!Number.isFinite(durationMin) || durationMin < 1) {
-      return Response.json(
-        { ok: false, error: "La duración debe ser un entero mayor o igual a 1 (minutos)." },
-        { status: 400 },
+      return errJson(
+        400,
+        "DURATION_INVALID",
+        "La duración debe ser un entero mayor o igual a 1 (minutos).",
       );
     }
     data.durationMin = durationMin;
@@ -82,14 +84,14 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   }
 
   if (Object.keys(data).length === 0) {
-    return Response.json({ ok: false, error: "No hay cambios que aplicar." }, { status: 400 });
+    return errJson(400, "NO_CHANGES", "No hay cambios que aplicar.");
   }
 
   try {
     const row = await prisma.service.update({ where: { id }, data });
     return Response.json({ ok: true, data: row });
   } catch {
-    return Response.json({ ok: false, error: "Servicio no encontrado." }, { status: 404 });
+    return errJson(404, "SERVICE_NOT_FOUND", "Servicio no encontrado.");
   }
 }
 
@@ -99,20 +101,21 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
 
   const { id: rawId } = await params;
   const id = Number(rawId);
-  if (Number.isNaN(id)) return Response.json({ ok: false, error: "ID inválido" }, { status: 400 });
+  if (Number.isNaN(id)) return errJson(400, "INVALID_ID", "ID inválido");
 
   const bookingsCount = await prisma.booking.count({ where: { serviceId: id } });
   if (bookingsCount > 0) {
-    return Response.json(
-      { ok: false, error: "No se puede eliminar: el servicio tiene reservas asociadas." },
-      { status: 409 },
+    return errJson(
+      409,
+      "SERVICE_DELETE_BOOKINGS",
+      "No se puede eliminar: el servicio tiene reservas asociadas.",
     );
   }
 
   try {
     await prisma.service.delete({ where: { id } });
   } catch {
-    return Response.json({ ok: false, error: "Servicio no encontrado." }, { status: 404 });
+    return errJson(404, "SERVICE_NOT_FOUND", "Servicio no encontrado.");
   }
 
   return Response.json({ ok: true });
