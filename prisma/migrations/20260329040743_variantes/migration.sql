@@ -1,11 +1,4 @@
--- DropForeignKey
-ALTER TABLE `Booking` DROP FOREIGN KEY `Booking_serviceVariantId_fkey`;
-
--- AlterTable
-ALTER TABLE `Booking` MODIFY `status` ENUM('PENDING', 'CONFIRMED', 'CANCELLED') NOT NULL DEFAULT 'PENDING';
-
--- AlterTable
-ALTER TABLE `User` MODIFY `role` ENUM('USER', 'ADMIN') NOT NULL DEFAULT 'USER';
-
--- AddForeignKey
-ALTER TABLE `Booking` ADD CONSTRAINT `Booking_serviceVariantId_fkey` FOREIGN KEY (`serviceVariantId`) REFERENCES `ServiceVariant`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+-- No-op: este archivo existía con SQL que debía ejecutarse *después* de crear `ServiceVariant`.
+-- El orden por timestamp hacía que corriera antes que `20260329120000_service_variants` y fallaba en producción (P3009).
+-- Los cambios reales están en `20260329120001_booking_variant_fk_enums`.
+SELECT 1;
