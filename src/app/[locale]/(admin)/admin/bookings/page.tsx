@@ -5,7 +5,7 @@ import { LoadingCard, LoadingInline } from "@/components/ui/BrandLoading";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/BrandFeedback";
 import { BrandPagination } from "@/components/ui/BrandPagination";
 import { resolveApiErrorMessage } from "@/lib/resolve-api-message";
-import { resolveServiceText, type ServiceTextSource } from "@/lib/service-locale";
+import { resolveServiceTextSafe, type ServiceTextSnippet } from "@/lib/service-locale";
 import type { AppLocale } from "@/i18n/routing";
 
 type BookingItem = {
@@ -15,7 +15,7 @@ type BookingItem = {
   date: string;
   price: string | number;
   status: "PENDING" | "CONFIRMED" | "CANCELLED";
-  service?: ServiceTextSource | null;
+  service?: ServiceTextSnippet | null;
 };
 
 const PAGE_SIZE = 8;
@@ -201,7 +201,7 @@ export default function AdminBookings() {
                   <div className="mt-1 text-sm text-slate-600">
                     {t("lineMeta", {
                       datetime: new Date(b.date).toLocaleString(dateLocale),
-                      service: b.service ? resolveServiceText(b.service, locale).name : "—",
+                      service: b.service ? resolveServiceTextSafe(b.service, locale).name : "—",
                       price: Number(b.price).toFixed(2),
                     })}
                   </div>

@@ -19,3 +19,30 @@ export function resolveServiceText(service: ServiceTextSource, locale: string): 
     description: useEn && descEn ? descEn : service.description,
   };
 }
+
+/** Fragmento de servicio típico en JSON (fetch): campos opcionales y `null` posibles. */
+export type ServiceTextSnippet = {
+  name?: string | null;
+  description?: string | null;
+  nameEn?: string | null;
+  descriptionEn?: string | null;
+};
+
+/**
+ * Misma lógica que `resolveServiceText`, pero tolera objetos parciales (p. ej. JSON de API)
+ * donde `description` u otros campos puedan faltar.
+ */
+export function resolveServiceTextSafe(
+  snippet: ServiceTextSnippet | null | undefined,
+  locale: string,
+): { name: string; description: string } {
+  return resolveServiceText(
+    {
+      name: snippet?.name ?? "",
+      description: snippet?.description ?? "",
+      nameEn: snippet?.nameEn,
+      descriptionEn: snippet?.descriptionEn,
+    },
+    locale,
+  );
+}
