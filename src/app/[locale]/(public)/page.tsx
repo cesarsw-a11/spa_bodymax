@@ -17,6 +17,51 @@ type ServiceHome = Pick<
   variants: ServiceVariant[];
 };
 
+function SourceIcon({ source }: { source: "GOOGLE" | "INSTAGRAM" | "FACEBOOK" }) {
+  if (source === "GOOGLE") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0">
+        <path
+          d="M12 10.2v3.95h5.48c-.23 1.27-.92 2.34-1.95 3.05v2.53h3.15c1.85-1.7 2.92-4.2 2.92-7.16 0-.69-.06-1.35-.18-1.99H12Z"
+          fill="currentColor"
+        />
+        <path
+          d="M12 22c2.64 0 4.85-.87 6.46-2.35l-3.15-2.53c-.87.58-1.99.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.6A9.98 9.98 0 0 0 12 22Z"
+          fill="currentColor"
+          opacity="0.85"
+        />
+        <path
+          d="M6.54 14.01A5.99 5.99 0 0 1 6.2 12c0-.69.12-1.35.34-2l-3.24-2.6A9.96 9.96 0 0 0 2 12c0 1.62.39 3.16 1.08 4.41l3.46-2.4Z"
+          fill="currentColor"
+          opacity="0.7"
+        />
+        <path
+          d="M12 5.96c1.44 0 2.73.5 3.74 1.47l2.8-2.8C16.84 2.98 14.63 2 12 2a9.98 9.98 0 0 0-8.7 4.99L6.54 10c.77-2.3 2.92-4.04 5.46-4.04Z"
+          fill="currentColor"
+          opacity="0.55"
+        />
+      </svg>
+    );
+  }
+  if (source === "INSTAGRAM") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0">
+        <rect x="3" y="3" width="18" height="18" rx="5" ry="5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <circle cx="17.2" cy="6.8" r="1.2" fill="currentColor" />
+      </svg>
+    );
+  }
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0">
+      <path
+        d="M14 8h3V4h-3c-3.31 0-6 2.69-6 6v2H5v4h3v4h4v-4h3.2l.8-4H12v-2c0-1.1.9-2 2-2Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 export default async function Home() {
   const t = await getTranslations("home");
   const locale = await getLocale();
@@ -174,7 +219,10 @@ export default async function Home() {
                     >
                       <p className="flex-1 whitespace-pre-wrap leading-relaxed">“{body}”</p>
                       <footer className="mt-4 text-xs font-medium text-violet-800">
-                        {attribution}
+                        <div className="inline-flex items-center gap-1.5 text-violet-800">
+                          <SourceIcon source={row.source} />
+                          <span>{attribution}</span>
+                        </div>
                         {row.sourceUrl ? (
                           <a
                             href={row.sourceUrl}
