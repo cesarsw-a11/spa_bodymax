@@ -9,6 +9,7 @@ export default async function AdminHome() {
     { href: "/admin/addons" as const, label: t("linkAddons"), desc: t("linkAddonsDesc") },
     { href: "/admin/bookings" as const, label: t("linkBookings"), desc: t("linkBookingsDesc") },
     { href: "/admin/blocked" as const, label: t("linkBlocked"), desc: t("linkBlockedDesc") },
+    { href: "/admin/testimonials" as const, label: t("linkTestimonials"), desc: t("linkTestimonialsDesc") },
   ];
 
   return (

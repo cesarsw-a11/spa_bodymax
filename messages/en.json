@@ -43,7 +43,10 @@
     "VARIANT_NOT_FOUND": "Service option not found.",
     "VARIANT_DELETE_BOOKINGS": "Cannot delete: there are bookings using this option.",
     "VARIANT_LAST": "At least one duration/price option must remain.",
-    "PRICE_MISMATCH": "The total does not match the current price. Refresh the page and try again."
+    "PRICE_MISMATCH": "The total does not match the current price. Refresh the page and try again.",
+    "TESTIMONIAL_QUOTE_REQUIRED": "The testimonial text is required.",
+    "TESTIMONIAL_SOURCE_INVALID": "Choose a valid source: Google, Instagram, or Facebook.",
+    "TESTIMONIAL_NOT_FOUND": "Testimonial not found."
   },
   "header": {
     "brandAlt": "Body Max Spa",
@@ -100,6 +103,13 @@
     "book": "Book",
     "durationRange": "{min}–{max} min",
     "testimonialsTitle": "What our clients say",
+    "testimonialsHint": "Real feedback from Google, Instagram, or Facebook.",
+    "testimonialViewOriginal": "View post",
+    "testimonialSources": {
+      "GOOGLE": "Google",
+      "INSTAGRAM": "Instagram",
+      "FACEBOOK": "Facebook"
+    },
     "quote1": "I loved the lavender vibe; I left feeling renewed.",
     "quote2": "The deep tissue massage saved my week.",
     "quote3": "Booking was super easy and they are very punctual.",
@@ -168,7 +178,8 @@
     "services": "Services",
     "addons": "Add-ons",
     "bookings": "Bookings",
-    "blocked": "Blocks"
+    "blocked": "Blocks",
+    "testimonials": "Testimonials"
   },
   "logout": { "label": "Sign out" },
   "protected": { "loading": "Loading…", "unauthorized": "Unauthorized" },
@@ -429,7 +440,9 @@
     "linkBookings": "Manage bookings",
     "linkBookingsDesc": "Confirm or cancel appointments.",
     "linkBlocked": "Block time slots",
-    "linkBlockedDesc": "Restrict dates and times from booking."
+    "linkBlockedDesc": "Restrict dates and times from booking.",
+    "linkTestimonials": "Testimonials",
+    "linkTestimonialsDesc": "Real reviews (Google, Instagram, Facebook) on the home page."
   },
   "adminBlocked": {
     "title": "Block dates and time slots",
@@ -517,5 +530,55 @@
     "activeCheck": "Active (visible on bookings)",
     "saving": "Saving…",
     "saveBtn": "Save add-on"
+  },
+  "adminTestimonials": {
+    "loadErrGeneric": "Error loading testimonials.",
+    "saveUnexpected": "Error while saving.",
+    "quoteRequired": "The Spanish testimonial text is required.",
+    "createdOk": "Testimonial created.",
+    "updatedOk": "Testimonial updated.",
+    "deleteDeleted": "Testimonial removed.",
+    "bannerOk": "Done",
+    "bannerErr": "Action not completed",
+    "overlayUpdating": "Updating testimonials",
+    "overlayUpdatingSub": "Applying changes…",
+    "title": "Testimonials",
+    "intro": "Publish real feedback from Google, Instagram, or Facebook. Copy text faithfully and link to the review or post when possible. Use the optional English field if you want a /en version.",
+    "loadingList": "Loading testimonials…",
+    "emptyList": "No testimonials yet. Create the first one using the form on the right.",
+    "formNew": "New testimonial",
+    "formEdit": "Edit testimonial",
+    "cancelEdit": "Cancel edit",
+    "editingNote": "Editing testimonial #{id}.",
+    "labelQuote": "Text (Spanish)",
+    "labelQuoteEn": "Text (English, optional)",
+    "labelAuthor": "Name or initials (optional)",
+    "labelSource": "Source",
+    "labelSourceUrl": "Link to review or post (optional)",
+    "labelSort": "Order (lower = first)",
+    "phQuote": "Text as the client wrote it…",
+    "phQuoteEn": "Manual English translation…",
+    "phAuthor": "e.g. Jane D.",
+    "phUrl": "https://…",
+    "sourceGoogle": "Google",
+    "sourceInstagram": "Instagram",
+    "sourceFacebook": "Facebook",
+    "activeCheck": "Show on home page",
+    "savingOverlay": "Saving testimonial",
+    "savingOverlaySub": "Saving to the database…",
+    "saving": "Saving…",
+    "saveCreate": "Save testimonial",
+    "saveUpdate": "Update testimonial",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Remove this testimonial from the site?",
+    "active": "Visible",
+    "inactive": "Hidden",
+    "activate": "Show",
+    "deactivate": "Hide",
+    "toggleErr": "Could not update status.",
+    "activated": "Testimonial is visible on the home page.",
+    "deactivated": "Testimonial is hidden on the home page.",
+    "deleteErr": "Could not delete."
   }
 }

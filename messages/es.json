@@ -43,7 +43,10 @@
     "VARIANT_NOT_FOUND": "Opción de servicio no encontrada.",
     "VARIANT_DELETE_BOOKINGS": "No se puede eliminar: hay reservas con esta opción.",
     "VARIANT_LAST": "Debe quedar al menos una opción de duración y precio.",
-    "PRICE_MISMATCH": "El total no coincide con el precio actual. Actualiza la página e inténtalo de nuevo."
+    "PRICE_MISMATCH": "El total no coincide con el precio actual. Actualiza la página e inténtalo de nuevo.",
+    "TESTIMONIAL_QUOTE_REQUIRED": "El texto del testimonio es obligatorio.",
+    "TESTIMONIAL_SOURCE_INVALID": "Indica una fuente válida: Google, Instagram o Facebook.",
+    "TESTIMONIAL_NOT_FOUND": "Testimonio no encontrado."
   },
   "header": {
     "brandAlt": "Body Max Spa",
@@ -100,6 +103,13 @@
     "book": "Reservar",
     "durationRange": "{min}–{max} min",
     "testimonialsTitle": "Lo que dicen nuestros clientes",
+    "testimonialsHint": "Opiniones reales publicadas en Google, Instagram o Facebook.",
+    "testimonialViewOriginal": "Ver publicación",
+    "testimonialSources": {
+      "GOOGLE": "Google",
+      "INSTAGRAM": "Instagram",
+      "FACEBOOK": "Facebook"
+    },
     "quote1": "La atmósfera lavanda me encantó; salí renovada.",
     "quote2": "El masaje descontracturante me salvó la semana.",
     "quote3": "Reservar fue facilísimo y son súper puntuales.",
@@ -168,7 +178,8 @@
     "services": "Servicios",
     "addons": "Complementos",
     "bookings": "Reservas",
-    "blocked": "Bloqueos"
+    "blocked": "Bloqueos",
+    "testimonials": "Testimonios"
   },
   "logout": { "label": "Cerrar sesión" },
   "protected": { "loading": "Cargando…", "unauthorized": "No autorizado" },
@@ -429,7 +440,9 @@
     "linkBookings": "Gestionar reservas",
     "linkBookingsDesc": "Confirmar o cancelar citas.",
     "linkBlocked": "Bloquear horarios",
-    "linkBlockedDesc": "Restringe fechas y horas no disponibles."
+    "linkBlockedDesc": "Restringe fechas y horas no disponibles.",
+    "linkTestimonials": "Testimonios",
+    "linkTestimonialsDesc": "Opiniones reales (Google, Instagram, Facebook) en la página principal."
   },
   "adminBlocked": {
     "title": "Bloquear fechas y horarios",
@@ -517,5 +530,55 @@
     "activeCheck": "Activo (visible en reservas)",
     "saving": "Guardando…",
     "saveBtn": "Guardar complemento"
+  },
+  "adminTestimonials": {
+    "loadErrGeneric": "Error al cargar testimonios.",
+    "saveUnexpected": "Error al guardar.",
+    "quoteRequired": "El texto del testimonio (español) es obligatorio.",
+    "createdOk": "Testimonio creado.",
+    "updatedOk": "Testimonio actualizado.",
+    "deleteDeleted": "Testimonio eliminado.",
+    "bannerOk": "Listo",
+    "bannerErr": "Acción no completada",
+    "overlayUpdating": "Actualizando testimonios",
+    "overlayUpdatingSub": "Aplicando cambios…",
+    "title": "Testimonios",
+    "intro": "Publica opiniones reales que ya existan en Google, Instagram o Facebook. Copia el texto con fidelidad y, si puedes, enlaza la reseña o publicación. Traduce al inglés solo en el campo opcional si quieres una versión en /en.",
+    "loadingList": "Cargando testimonios…",
+    "emptyList": "No hay testimonios. Crea el primero con el formulario de la derecha.",
+    "formNew": "Nuevo testimonio",
+    "formEdit": "Editar testimonio",
+    "cancelEdit": "Cancelar edición",
+    "editingNote": "Editando testimonio #{id}.",
+    "labelQuote": "Texto (ES)",
+    "labelQuoteEn": "Texto (EN, opcional)",
+    "labelAuthor": "Nombre o iniciales (opcional)",
+    "labelSource": "Fuente",
+    "labelSourceUrl": "Enlace a la reseña o publicación (opcional)",
+    "labelSort": "Orden (menor = primero)",
+    "phQuote": "Texto tal como lo dejó el cliente…",
+    "phQuoteEn": "English version if you translate manually…",
+    "phAuthor": "Ej. María G.",
+    "phUrl": "https://…",
+    "sourceGoogle": "Google",
+    "sourceInstagram": "Instagram",
+    "sourceFacebook": "Facebook",
+    "activeCheck": "Visible en la página principal",
+    "savingOverlay": "Guardando testimonio",
+    "savingOverlaySub": "Registrando en la base de datos…",
+    "saving": "Guardando…",
+    "saveCreate": "Guardar testimonio",
+    "saveUpdate": "Actualizar testimonio",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar este testimonio de la web?",
+    "active": "Visible",
+    "inactive": "Oculto",
+    "activate": "Mostrar",
+    "deactivate": "Ocultar",
+    "toggleErr": "No se pudo cambiar el estado.",
+    "activated": "Testimonio visible en la home.",
+    "deactivated": "Testimonio oculto en la home.",
+    "deleteErr": "No se pudo eliminar."
   }
 }

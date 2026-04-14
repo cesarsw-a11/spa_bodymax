@@ -14,6 +14,7 @@ export default function AdminNav() {
     { href: "/admin/addons", labelKey: "addons" as const },
     { href: "/admin/bookings", labelKey: "bookings" as const },
     { href: "/admin/blocked", labelKey: "blocked" as const },
+    { href: "/admin/testimonials", labelKey: "testimonials" as const },
   ];
 
   return (

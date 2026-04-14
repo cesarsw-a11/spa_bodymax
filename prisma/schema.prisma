@@ -95,6 +95,26 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum TestimonialSource {
+  GOOGLE
+  INSTAGRAM
+  FACEBOOK
+}
+
+model Testimonial {
+  id        Int               @id @default(autoincrement())
+  quote     String            @db.Text
+  /** Inglés (opcional). En /en se usa si está relleno; si no, `quote`. */
+  quoteEn   String?           @db.Text
+  author    String?           @db.VarChar(191)
+  source    TestimonialSource
+  sourceUrl String?           @db.VarChar(512)
+  sortOrder Int               @default(0)
+  active    Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
 model BlockedSlot {
   id        Int      @id @default(autoincrement())
   start     DateTime

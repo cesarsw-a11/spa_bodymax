@@ -4,6 +4,7 @@ import { Link } from "@/i18n/navigation";
 import Hero from "@/components/Hero";
 import { resolveServiceText } from "@/lib/service-locale";
 import type { Service, ServiceVariant } from "@prisma/client";
+import { resolveTestimonialQuote } from "@/lib/testimonial-text";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,19 @@ type ServiceHome = Pick<
 export default async function Home() {
   const t = await getTranslations("home");
   const locale = await getLocale();
+  const dbTestimonials = await prisma.testimonial.findMany({
+    where: { active: true },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      quote: true,
+      quoteEn: true,
+      author: true,
+      source: true,
+      sourceUrl: true,
+    },
+  });
+
   const services = (await prisma.service.findMany({
     where: {
       active: true,
@@ -39,7 +53,8 @@ export default async function Home() {
     { titleKey: "highlight3Title" as const, descKey: "highlight3Desc" as const },
   ];
 
-  const quotes = ["quote1", "quote2", "quote3"] as const;
+  const fallbackQuotes = ["quote1", "quote2", "quote3"] as const;
+  const useDbTestimonials = dbTestimonials.length > 0;
 
   return (
     <div className="space-y-28">
@@ -136,15 +151,52 @@ export default async function Home() {
       <section className="mx-auto max-w-6xl px-6 md:px-10">
         <div className="rounded-[2rem] border border-violet-200/60 bg-white p-8 shadow-sm md:p-12">
           <h3 className="text-2xl font-semibold text-stone-900">{t("testimonialsTitle")}</h3>
+          {useDbTestimonials ? (
+            <p className="mt-2 text-sm text-stone-600">{t("testimonialsHint")}</p>
+          ) : null}
           <div className="mt-6 grid gap-6 md:grid-cols-3">
-            {quotes.map((q) => (
-              <blockquote
-                key={q}
-                className="rounded-2xl border border-violet-200/60 bg-white/80 p-5 text-stone-700"
-              >
-                “{t(q)}”
-              </blockquote>
-            ))}
+            {useDbTestimonials
+              ? dbTestimonials.map((row) => {
+                  const body = resolveTestimonialQuote(row, locale);
+                  const sourceName =
+                    row.source === "GOOGLE"
+                      ? t("testimonialSources.GOOGLE")
+                      : row.source === "INSTAGRAM"
+                        ? t("testimonialSources.INSTAGRAM")
+                        : t("testimonialSources.FACEBOOK");
+                  const attribution = row.author
+                    ? `— ${row.author} · ${sourceName}`
+                    : `— ${sourceName}`;
+                  return (
+                    <blockquote
+                      key={row.id}
+                      className="flex h-full flex-col rounded-2xl border border-violet-200/60 bg-white/80 p-5 text-stone-700"
+                    >
+                      <p className="flex-1 whitespace-pre-wrap leading-relaxed">“{body}”</p>
+                      <footer className="mt-4 text-xs font-medium text-violet-800">
+                        {attribution}
+                        {row.sourceUrl ? (
+                          <a
+                            href={row.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 block text-violet-600 underline hover:text-violet-800"
+                          >
+                            {t("testimonialViewOriginal")}
+                          </a>
+                        ) : null}
+                      </footer>
+                    </blockquote>
+                  );
+                })
+              : fallbackQuotes.map((q) => (
+                  <blockquote
+                    key={q}
+                    className="rounded-2xl border border-violet-200/60 bg-white/80 p-5 text-stone-700"
+                  >
+                    “{t(q)}”
+                  </blockquote>
+                ))}
           </div>
         </div>
       </section>
