@@ -115,7 +115,11 @@
     "quote3": "Booking was super easy and they are very punctual.",
     "ctaTitle": "Ready to reconnect?",
     "ctaSubtitle": "Schedule your moment of calm. We are waiting with a tailored experience.",
-    "ctaButton": "Book now"
+    "ctaButton": "Book now",
+    "zoneTitleMasajes": "Massages",
+    "zoneTitleFaciales": "Facials",
+    "zoneTitlePestanas": "Lashes",
+    "zoneTitleOtros": "Other services"
   },
   "footerContact": {
     "defaultSubject": "Inquiry — Body Max Spa",
@@ -181,8 +185,13 @@
     "blocked": "Blocks",
     "testimonials": "Testimonials"
   },
-  "logout": { "label": "Sign out" },
-  "protected": { "loading": "Loading…", "unauthorized": "Unauthorized" },
+  "logout": {
+    "label": "Sign out"
+  },
+  "protected": {
+    "loading": "Loading…",
+    "unauthorized": "Unauthorized"
+  },
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "Real-time operational overview of the spa.",

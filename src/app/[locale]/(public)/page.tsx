@@ -17,6 +17,47 @@ type ServiceHome = Pick<
   variants: ServiceVariant[];
 };
 
+type ServiceZone = "masajes" | "faciales" | "pestanas" | "otros";
+
+const zoneOrder: ServiceZone[] = ["masajes", "faciales", "pestanas", "otros"];
+
+function normalizeForMatch(input: string): string {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function resolveServiceZone(name: string): ServiceZone {
+  const n = normalizeForMatch(name);
+  if (
+    n.includes("masaje") ||
+    n.includes("massage") ||
+    n.includes("descontracturante") ||
+    n.includes("relajante") ||
+    n.includes("tejido profundo")
+  ) {
+    return "masajes";
+  }
+  if (
+    n.includes("facial") ||
+    n.includes("limpieza") ||
+    n.includes("skin") ||
+    n.includes("hidratacion")
+  ) {
+    return "faciales";
+  }
+  if (
+    n.includes("pesta") ||
+    n.includes("lash") ||
+    n.includes("lifting") ||
+    n.includes("extension")
+  ) {
+    return "pestanas";
+  }
+  return "otros";
+}
+
 function SourceIcon({ source }: { source: "GOOGLE" | "INSTAGRAM" | "FACEBOOK" }) {
   if (source === "GOOGLE") {
     return (
@@ -100,6 +141,21 @@ export default async function Home() {
 
   const fallbackQuotes = ["quote1", "quote2", "quote3"] as const;
   const useDbTestimonials = dbTestimonials.length > 0;
+  const servicesByZone = services.reduce<Record<ServiceZone, ServiceHome[]>>(
+    (acc, service) => {
+      const zone = resolveServiceZone(service.name);
+      acc[zone].push(service);
+      return acc;
+    },
+    { masajes: [], faciales: [], pestanas: [], otros: [] },
+  );
+
+  const zoneTitleByKey: Record<ServiceZone, string> = {
+    masajes: t("zoneTitleMasajes"),
+    faciales: t("zoneTitleFaciales"),
+    pestanas: t("zoneTitlePestanas"),
+    otros: t("zoneTitleOtros"),
+  };
 
   return (
     <div className="space-y-28">
@@ -134,60 +190,71 @@ export default async function Home() {
           </Link>
         </div>
 
-        <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((s) => {
-            const { name, description } = resolveServiceText(s, locale);
-            const vars = s.variants;
-            const prices = vars.map((v) => Number(v.price));
-            const pLo = Math.min(...prices);
-            const pHi = Math.max(...prices);
-            const durs = vars.map((v) => v.durationMin);
-            const dLo = Math.min(...durs);
-            const dHi = Math.max(...durs);
+        <div className="space-y-9">
+          {zoneOrder.map((zoneKey) => {
+            const zoneItems = servicesByZone[zoneKey];
+            if (zoneItems.length === 0) return null;
             return (
-              <Link
-                key={s.id}
-                href={`/reserve?serviceId=${s.id}`}
-                aria-label={t("bookServiceAria", { name })}
-                className="group block rounded-[1.75rem] outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
-              >
-                <article className="relative h-full overflow-hidden rounded-[1.75rem] border border-violet-200/60 bg-white shadow-sm transition group-hover:-translate-y-1 group-hover:shadow-xl">
-                  {s.imageUrl ? (
-                    <div
-                      className="h-40 w-full bg-cover bg-center"
-                      style={{ backgroundImage: `url("${s.imageUrl}")` }}
-                      aria-hidden
-                    />
-                  ) : (
-                    <div className="relative h-40 w-full bg-gradient-to-br from-violet-50 via-fuchsia-50 to-white">
-                      <div className="absolute inset-0">
-                        <div className="absolute -left-8 top-6 h-28 w-28 rounded-full bg-violet-200/40 blur-2xl" />
-                        <div className="absolute right-6 -bottom-6 h-24 w-24 rounded-full bg-fuchsia-200/40 blur-2xl" />
-                      </div>
-                    </div>
-                  )}
+              <section key={zoneKey}>
+                <h3 className="mb-4 text-xl font-semibold text-stone-900">{zoneTitleByKey[zoneKey]}</h3>
+                <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
+                  {zoneItems.map((s) => {
+                    const { name, description } = resolveServiceText(s, locale);
+                    const vars = s.variants;
+                    const prices = vars.map((v) => Number(v.price));
+                    const pLo = Math.min(...prices);
+                    const pHi = Math.max(...prices);
+                    const durs = vars.map((v) => v.durationMin);
+                    const dLo = Math.min(...durs);
+                    const dHi = Math.max(...durs);
+                    return (
+                      <Link
+                        key={s.id}
+                        href={`/reserve?serviceId=${s.id}`}
+                        aria-label={t("bookServiceAria", { name })}
+                        className="group block rounded-[1.75rem] outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+                      >
+                        <article className="relative h-full overflow-hidden rounded-[1.75rem] border border-violet-200/60 bg-white shadow-sm transition group-hover:-translate-y-1 group-hover:shadow-xl">
+                          {s.imageUrl ? (
+                            <div
+                              className="h-40 w-full bg-cover bg-center"
+                              style={{ backgroundImage: `url("${s.imageUrl}")` }}
+                              aria-hidden
+                            />
+                          ) : (
+                            <div className="relative h-40 w-full bg-gradient-to-br from-violet-50 via-fuchsia-50 to-white">
+                              <div className="absolute inset-0">
+                                <div className="absolute -left-8 top-6 h-28 w-28 rounded-full bg-violet-200/40 blur-2xl" />
+                                <div className="absolute right-6 -bottom-6 h-24 w-24 rounded-full bg-fuchsia-200/40 blur-2xl" />
+                              </div>
+                            </div>
+                          )}
 
-                  <div className="p-6">
-                    <h3 className="text-lg font-semibold text-stone-900">{name}</h3>
-                    <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-stone-600">{description}</p>
+                          <div className="p-6">
+                            <h3 className="text-lg font-semibold text-stone-900">{name}</h3>
+                            <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-stone-600">{description}</p>
 
-                    <div className="mt-4 flex items-center justify-between">
-                      <span className="text-base font-semibold text-stone-900">
-                        {pLo === pHi ? `$${pLo.toFixed(2)}` : `$${pLo.toFixed(2)} – $${pHi.toFixed(2)}`}
-                      </span>
-                      <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700">
-                        {dLo === dHi ? `${dLo} ${t("min")}` : t("durationRange", { min: dLo, max: dHi })}
-                      </span>
-                    </div>
+                            <div className="mt-4 flex items-center justify-between">
+                              <span className="text-base font-semibold text-stone-900">
+                                {pLo === pHi ? `$${pLo.toFixed(2)}` : `$${pLo.toFixed(2)} – $${pHi.toFixed(2)}`}
+                              </span>
+                              <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700">
+                                {dLo === dHi ? `${dLo} ${t("min")}` : t("durationRange", { min: dLo, max: dHi })}
+                              </span>
+                            </div>
 
-                    <div className="mt-5">
-                      <span className="inline-flex items-center justify-center rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-600/25 transition group-hover:bg-violet-700 group-active:scale-[0.99]">
-                        {t("book")}
-                      </span>
-                    </div>
-                  </div>
-                </article>
-              </Link>
+                            <div className="mt-5">
+                              <span className="inline-flex items-center justify-center rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-600/25 transition group-hover:bg-violet-700 group-active:scale-[0.99]">
+                                {t("book")}
+                              </span>
+                            </div>
+                          </div>
+                        </article>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
             );
           })}
         </div>

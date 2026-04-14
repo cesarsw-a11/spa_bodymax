@@ -115,7 +115,11 @@
     "quote3": "Reservar fue facilísimo y son súper puntuales.",
     "ctaTitle": "¿Listo para reconectar?",
     "ctaSubtitle": "Agenda tu momento de calma. Te esperamos con una experiencia hecha a tu medida.",
-    "ctaButton": "Reservar ahora"
+    "ctaButton": "Reservar ahora",
+    "zoneTitleMasajes": "Masajes",
+    "zoneTitleFaciales": "Faciales",
+    "zoneTitlePestanas": "Pestañas",
+    "zoneTitleOtros": "Otros"
   },
   "footerContact": {
     "defaultSubject": "Consulta — Body Max Spa",
@@ -181,8 +185,13 @@
     "blocked": "Bloqueos",
     "testimonials": "Testimonios"
   },
-  "logout": { "label": "Cerrar sesión" },
-  "protected": { "loading": "Cargando…", "unauthorized": "No autorizado" },
+  "logout": {
+    "label": "Cerrar sesión"
+  },
+  "protected": {
+    "loading": "Cargando…",
+    "unauthorized": "No autorizado"
+  },
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "Resumen operativo del SPA en tiempo real.",
