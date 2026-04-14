@@ -190,13 +190,22 @@ export default async function Home() {
           </Link>
         </div>
 
-        <div className="space-y-9">
+        <div className="space-y-10">
           {zoneOrder.map((zoneKey) => {
             const zoneItems = servicesByZone[zoneKey];
             if (zoneItems.length === 0) return null;
             return (
-              <section key={zoneKey}>
-                <h3 className="mb-4 text-xl font-semibold text-stone-900">{zoneTitleByKey[zoneKey]}</h3>
+              <section
+                key={zoneKey}
+                className="relative overflow-hidden rounded-3xl border border-violet-200/60 bg-white/70 p-5 shadow-sm md:p-6"
+              >
+                <div className="pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full bg-violet-200/25 blur-2xl" />
+                <div className="mb-5 flex items-center justify-between gap-3 border-b border-violet-100 pb-3">
+                  <h3 className="text-xl font-semibold text-stone-900 md:text-2xl">{zoneTitleByKey[zoneKey]}</h3>
+                  <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-800">
+                    {zoneItems.length}
+                  </span>
+                </div>
                 <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
                   {zoneItems.map((s) => {
                     const { name, description } = resolveServiceText(s, locale);
