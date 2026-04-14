@@ -32,7 +32,7 @@ function IconX({ className }: { className?: string }) {
 
 export default function FooterContactActions() {
   const t = useTranslations("footerContact");
-  const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "hola@spabodymax.com";
+  const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "bodymaxspa@gmail.com";
   const defaultSubjectFromEnv = process.env.NEXT_PUBLIC_CONTACT_EMAIL_SUBJECT?.trim();
 
   const [open, setOpen] = useState(false);
