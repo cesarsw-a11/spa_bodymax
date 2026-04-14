@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminModule } from "@/lib/auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -13,7 +13,7 @@ function normalizeImageUrl(raw: unknown): string | null | undefined {
 }
 
 export async function PATCH(req: Request, { params }: RouteContext) {
-  const unauthorized = await requireAdmin();
+  const unauthorized = await requireAdminModule("services");
   if (unauthorized) return unauthorized;
 
   const { id: rawId } = await params;
@@ -124,7 +124,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 }
 
 export async function DELETE(_req: Request, { params }: RouteContext) {
-  const unauthorized = await requireAdmin();
+  const unauthorized = await requireAdminModule("services");
   if (unauthorized) return unauthorized;
 
   const { id: rawId } = await params;

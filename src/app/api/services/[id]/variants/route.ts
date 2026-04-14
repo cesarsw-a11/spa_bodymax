@@ -1,13 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminModule } from "@/lib/auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 const variantOrderBy = [{ sortOrder: "asc" as const }, { id: "asc" as const }];
 
 export async function GET(_req: Request, { params }: RouteContext) {
-  const unauthorized = await requireAdmin();
+  const unauthorized = await requireAdminModule("services");
   if (unauthorized) return unauthorized;
 
   const { id: rawId } = await params;
@@ -25,7 +25,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
 }
 
 export async function POST(req: Request, { params }: RouteContext) {
-  const unauthorized = await requireAdmin();
+  const unauthorized = await requireAdminModule("services");
   if (unauthorized) return unauthorized;
 
   const { id: rawId } = await params;

@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminModule } from "@/lib/auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function DELETE(_req: Request, { params }: RouteContext) {
-  const unauthorized = await requireAdmin();
+  const unauthorized = await requireAdminModule("blocked");
   if (unauthorized) return unauthorized;
   const { id: rawId } = await params;
   const id = Number(rawId);

@@ -3,7 +3,8 @@ import AdminNav from "@/components/AdminNav";
 import { getServerSession } from "next-auth";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { authOptions } from "@/lib/auth";
+import { authOptions, canAccessAdminModuleFromSession } from "@/lib/auth";
+import { ADMIN_MODULES } from "@/lib/admin-permissions";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -26,10 +27,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </div>
     );
   }
+  const allowedModules = ADMIN_MODULES.filter((m) => canAccessAdminModuleFromSession(session, m));
 
   return (
     <div className="min-h-dvh bg-gradient-to-br from-slate-50 via-violet-50/40 to-fuchsia-50/40">
-      <AdminNav />
+      <AdminNav allowedModules={allowedModules} />
       <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
     </div>
   );

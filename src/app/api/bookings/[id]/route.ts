@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminModule } from "@/lib/auth";
 import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -43,7 +43,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
 }
 
 export async function PATCH(req: Request, { params }: RouteContext) {
-  const unauthorized = await requireAdmin();
+  const unauthorized = await requireAdminModule("bookings");
   if (unauthorized) return unauthorized;
   const { id: rawId } = await params;
   const id = Number(rawId);

@@ -1,6 +1,6 @@
 import { put } from "@vercel/blob";
 import { errJson } from "@/lib/err-json";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminModule } from "@/lib/auth";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -38,7 +38,7 @@ function storedExtension(file: File, mime: string): string {
 }
 
 export async function POST(req: Request) {
-  const unauthorized = await requireAdmin();
+  const unauthorized = await requireAdminModule("services");
   if (unauthorized) return unauthorized;
 
   const form = await req.formData();

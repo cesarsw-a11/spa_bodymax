@@ -46,7 +46,16 @@
     "PRICE_MISMATCH": "El total no coincide con el precio actual. Actualiza la página e inténtalo de nuevo.",
     "TESTIMONIAL_QUOTE_REQUIRED": "El texto del testimonio es obligatorio.",
     "TESTIMONIAL_SOURCE_INVALID": "Indica una fuente válida: Google, Instagram o Facebook.",
-    "TESTIMONIAL_NOT_FOUND": "Testimonio no encontrado."
+    "TESTIMONIAL_NOT_FOUND": "Testimonio no encontrado.",
+    "FORBIDDEN_MODULE": "No tienes permiso para este módulo.",
+    "ROLE_NAME_REQUIRED": "El nombre del rol es obligatorio.",
+    "ROLE_NAME_TAKEN": "Ya existe un rol con ese nombre.",
+    "ROLE_NOT_FOUND": "Rol no encontrado.",
+    "ROLE_IN_USE": "No se puede eliminar un rol asignado a empleados.",
+    "PASSWORD_MIN": "La contraseña debe tener al menos 6 caracteres.",
+    "EMAIL_TAKEN": "Ya existe un usuario con ese correo.",
+    "INVALID_ROLE": "Rol inválido.",
+    "USER_NOT_FOUND": "Empleado no encontrado."
   },
   "header": {
     "brandAlt": "Body Max Spa",
@@ -183,7 +192,9 @@
     "addons": "Complementos",
     "bookings": "Reservas",
     "blocked": "Bloqueos",
-    "testimonials": "Testimonios"
+    "testimonials": "Testimonios",
+    "roles": "Roles",
+    "employees": "Empleados"
   },
   "logout": {
     "label": "Cerrar sesión"
@@ -201,7 +212,8 @@
     "upcomingTitle": "Próximas citas",
     "noUpcoming": "No hay citas próximas.",
     "serviceFallback": "Servicio",
-    "chartLastDays": "últimos {days} días"
+    "chartLastDays": "últimos {days} días",
+    "noModuleAccess": "No tienes acceso al módulo de dashboard."
   },
   "revenueChart": {
     "title": "Ingresos por día (confirmadas)",
@@ -451,7 +463,11 @@
     "linkBlocked": "Bloquear horarios",
     "linkBlockedDesc": "Restringe fechas y horas no disponibles.",
     "linkTestimonials": "Testimonios",
-    "linkTestimonialsDesc": "Opiniones reales (Google, Instagram, Facebook) en la página principal."
+    "linkTestimonialsDesc": "Opiniones reales (Google, Instagram, Facebook) en la página principal.",
+    "linkRoles": "Gestionar roles",
+    "linkRolesDesc": "Define permisos por módulo para tu equipo.",
+    "linkEmployees": "Gestionar empleados",
+    "linkEmployeesDesc": "Crea usuarios y asigna su rol administrativo."
   },
   "adminBlocked": {
     "title": "Bloquear fechas y horarios",
@@ -589,5 +605,56 @@
     "activated": "Testimonio visible en la home.",
     "deactivated": "Testimonio oculto en la home.",
     "deleteErr": "No se pudo eliminar."
+  },
+  "adminRoles": {
+    "title": "Roles de empleados",
+    "subtitle": "Define qué módulos puede ver cada rol.",
+    "loading": "Cargando roles…",
+    "empty": "No hay roles creados.",
+    "loadErr": "No se pudieron cargar los roles.",
+    "saveErr": "No se pudo guardar el rol.",
+    "deleteErr": "No se pudo eliminar el rol.",
+    "deleteConfirm": "¿Eliminar este rol?",
+    "employeesCount": "{n} empleados",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "newTitle": "Nuevo rol",
+    "editTitle": "Editar rol",
+    "namePh": "Nombre del rol",
+    "modules": "Módulos permitidos",
+    "saveChanges": "Guardar cambios",
+    "create": "Crear rol",
+    "cancel": "Cancelar",
+    "module_dashboard": "Dashboard",
+    "module_services": "Servicios",
+    "module_addons": "Complementos",
+    "module_bookings": "Reservas",
+    "module_blocked": "Bloqueos",
+    "module_testimonials": "Testimonios",
+    "module_users": "Usuarios y roles"
+  },
+  "adminUsers": {
+    "title": "Empleados",
+    "subtitle": "Administra usuarios del panel y sus roles.",
+    "loading": "Cargando empleados…",
+    "empty": "No hay empleados registrados.",
+    "loadErr": "No se pudieron cargar empleados.",
+    "saveErr": "No se pudo guardar el empleado.",
+    "edit": "Editar",
+    "newTitle": "Nuevo empleado",
+    "editTitle": "Editar empleado",
+    "namePh": "Nombre completo",
+    "emailPh": "Correo electrónico",
+    "passwordPh": "Contraseña (mínimo 6 caracteres)",
+    "passwordOptionalPh": "Nueva contraseña (opcional)",
+    "roleAdmin": "Administrador",
+    "roleUser": "Usuario",
+    "superadmin": "Superadmin (acceso total)",
+    "adminWithRole": "Admin con rol",
+    "saveChanges": "Guardar cambios",
+    "create": "Crear empleado",
+    "cancel": "Cancelar"
   }
 }

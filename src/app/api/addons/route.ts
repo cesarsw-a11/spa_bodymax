@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminModule } from "@/lib/auth";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   if (searchParams.get("all") === "1") {
-    const unauthorized = await requireAdmin();
+    const unauthorized = await requireAdminModule("addons");
     if (unauthorized) return unauthorized;
     const rows = await prisma.addon.findMany({ orderBy: { id: "asc" } });
     const data = rows.map((r) => ({
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const unauthorized = await requireAdmin();
+  const unauthorized = await requireAdminModule("addons");
   if (unauthorized) return unauthorized;
   const body = await req.json();
   const name = typeof body.name === "string" ? body.name.trim() : "";

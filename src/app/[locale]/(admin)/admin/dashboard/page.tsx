@@ -3,15 +3,25 @@ import { buildDailyRevenueSeries } from "@/lib/dashboardRevenue";
 import RevenueChart from "@/components/admin/RevenueChart";
 import { getLocale, getTranslations } from "next-intl/server";
 import { resolveServiceText } from "@/lib/service-locale";
+import { getServerSession } from "next-auth";
+import { authOptions, canAccessAdminModuleFromSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 const REVENUE_CHART_DAYS = 60;
 
 export default async function Dashboard() {
+  const session = await getServerSession(authOptions);
   const t = await getTranslations("dashboard");
   const locale = await getLocale();
   const dateLocale = locale === "en" ? "en-US" : "es-MX";
+  if (!canAccessAdminModuleFromSession(session, "dashboard")) {
+    return (
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
+        {t("noModuleAccess")}
+      </section>
+    );
+  }
 
   const chartStart = new Date();
   chartStart.setDate(chartStart.getDate() - (REVENUE_CHART_DAYS - 1));

@@ -1,16 +1,22 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions, canAccessAdminModuleFromSession } from "@/lib/auth";
 
 export default async function AdminHome() {
   const t = await getTranslations("adminHome");
+  const session = await getServerSession(authOptions);
   const shortcuts = [
-    { href: "/admin/dashboard" as const, label: t("linkDashboard"), desc: t("linkDashboardDesc") },
-    { href: "/admin/services" as const, label: t("linkServices"), desc: t("linkServicesDesc") },
-    { href: "/admin/addons" as const, label: t("linkAddons"), desc: t("linkAddonsDesc") },
-    { href: "/admin/bookings" as const, label: t("linkBookings"), desc: t("linkBookingsDesc") },
-    { href: "/admin/blocked" as const, label: t("linkBlocked"), desc: t("linkBlockedDesc") },
-    { href: "/admin/testimonials" as const, label: t("linkTestimonials"), desc: t("linkTestimonialsDesc") },
+    { href: "/admin/dashboard" as const, label: t("linkDashboard"), desc: t("linkDashboardDesc"), module: "dashboard" as const },
+    { href: "/admin/services" as const, label: t("linkServices"), desc: t("linkServicesDesc"), module: "services" as const },
+    { href: "/admin/addons" as const, label: t("linkAddons"), desc: t("linkAddonsDesc"), module: "addons" as const },
+    { href: "/admin/bookings" as const, label: t("linkBookings"), desc: t("linkBookingsDesc"), module: "bookings" as const },
+    { href: "/admin/blocked" as const, label: t("linkBlocked"), desc: t("linkBlockedDesc"), module: "blocked" as const },
+    { href: "/admin/testimonials" as const, label: t("linkTestimonials"), desc: t("linkTestimonialsDesc"), module: "testimonials" as const },
+    { href: "/admin/roles" as const, label: t("linkRoles"), desc: t("linkRolesDesc"), module: "users" as const },
+    { href: "/admin/users" as const, label: t("linkEmployees"), desc: t("linkEmployeesDesc"), module: "users" as const },
   ];
+  const visibleShortcuts = shortcuts.filter((item) => canAccessAdminModuleFromSession(session, item.module));
 
   return (
     <section className="space-y-6">
@@ -20,7 +26,7 @@ export default async function AdminHome() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {shortcuts.map((item) => (
+        {visibleShortcuts.map((item) => (
           <Link
             key={item.href}
             href={item.href}

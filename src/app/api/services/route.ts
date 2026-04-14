@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminModule } from "@/lib/auth";
 
 function parsePagination(searchParams: URLSearchParams) {
   const pageRaw = searchParams.get("page");
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const unauthorized = await requireAdmin();
+  const unauthorized = await requireAdminModule("services");
   if (unauthorized) return unauthorized;
 
   let body: Record<string, unknown>;

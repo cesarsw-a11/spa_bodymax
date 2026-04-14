@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminModule } from "@/lib/auth";
 import type { TestimonialSource } from "@prisma/client";
 
 function parseSource(raw: unknown): TestimonialSource | null {
@@ -15,7 +15,7 @@ const orderBy = [{ sortOrder: "asc" as const }, { id: "asc" as const }];
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   if (searchParams.get("all") === "1") {
-    const unauthorized = await requireAdmin();
+    const unauthorized = await requireAdminModule("testimonials");
     if (unauthorized) return unauthorized;
     const rows = await prisma.testimonial.findMany({ orderBy });
     return Response.json({ ok: true, data: rows });
@@ -38,7 +38,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const unauthorized = await requireAdmin();
+  const unauthorized = await requireAdminModule("testimonials");
   if (unauthorized) return unauthorized;
 
   let body: Record<string, unknown>;

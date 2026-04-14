@@ -8,18 +8,32 @@ generator client {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          Int        @id @default(autoincrement())
+  name        String
+  email       String     @unique
+  password    String
+  role        Role       @default(USER)
+  adminRoleId Int?
+  adminRole   AdminRole? @relation(fields: [adminRoleId], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([adminRoleId])
 }
 
 enum Role {
   USER
   ADMIN
+}
+
+model AdminRole {
+  id              Int      @id @default(autoincrement())
+  name            String   @unique
+  permissionsJson String   @db.LongText
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  users           User[]
 }
 
 model Service {

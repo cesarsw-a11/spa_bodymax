@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminModule } from "@/lib/auth";
 
 function parsePagination(searchParams: URLSearchParams) {
   const pageRaw = searchParams.get("page");
@@ -11,7 +11,7 @@ function parsePagination(searchParams: URLSearchParams) {
 }
 
 export async function GET(req: Request) {
-  const unauthorized = await requireAdmin();
+  const unauthorized = await requireAdminModule("blocked");
   if (unauthorized) return unauthorized;
   const { searchParams } = new URL(req.url);
   const pagination = parsePagination(searchParams);
@@ -44,7 +44,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const unauthorized = await requireAdmin();
+  const unauthorized = await requireAdminModule("blocked");
   if (unauthorized) return unauthorized;
   const body = await req.json();
   const data = await prisma.blockedSlot.create({ data: { start: new Date(body.start), end: new Date(body.end), reason: body.reason } });
