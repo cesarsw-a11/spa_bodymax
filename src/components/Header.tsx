@@ -11,14 +11,14 @@ export default async function Header() {
       <div className="mx-auto flex max-w-6xl items-center justify-between">
         <Link href="/" className="flex items-center gap-3 font-bold text-slate-900 transition hover:opacity-90">
           <Image
-            src="/logo.jpg"
+            src="/logo.png"
             alt={t("brandAlt")}
             width={300}
             height={100}
             className="h-20 w-auto object-contain sm:h-20 my-1 rounded-md"
             priority
           />
-          <span className="hidden sm:inline">{t("brandAlt")}</span>
+          {/* <span className="hidden sm:inline">{t("brandAlt")}</span> */}
         </Link>
         <nav className="flex items-center gap-3 text-sm">
           <LocaleSwitcher />
