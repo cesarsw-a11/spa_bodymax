@@ -22,9 +22,6 @@ export default async function Header() {
         </Link>
         <nav className="flex items-center gap-3 text-sm">
           <LocaleSwitcher />
-          <Link href="/auth/login" className="underline">
-            {t("admin")}
-          </Link>
         </nav>
       </div>
     </header>
