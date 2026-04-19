@@ -1,17 +1,23 @@
 import "../../../globals.css";
 import AdminNav from "@/components/AdminNav";
 import { getServerSession } from "next-auth";
-import { getTranslations } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
+import { Link, redirect } from "@/i18n/navigation";
 import { authOptions, canAccessAdminModuleFromSession } from "@/lib/auth";
 import { ADMIN_MODULES } from "@/lib/admin-permissions";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
-  const role = (session?.user as { role?: string } | undefined)?.role;
+
+  if (!session) {
+    const locale = await getLocale();
+    redirect({ href: "/auth/login", locale });
+  }
+
+  const role = (session!.user as { role?: string } | undefined)?.role;
   const t = await getTranslations("adminLayout");
 
-  if (!session || role !== "ADMIN") {
+  if (role !== "ADMIN") {
     return (
       <div className="grid min-h-dvh place-items-center bg-slate-50 p-6">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
