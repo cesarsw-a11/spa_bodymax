@@ -272,3 +272,10 @@ Si vas a desplegar esto en un servidor real (no en la laptop de desarrollo):
 | [`docker-compose.yml`](docker-compose.yml)   | Orquesta `db`, `app` y el servicio on-demand `seed`.                    |
 | [`.dockerignore`](.dockerignore)             | Excluye del contexto de build lo que no debe llegar a la imagen.        |
 | [`docker-entrypoint.sh`](docker-entrypoint.sh) | Ejecuta migraciones antes de lanzar `node server.js`.                  |
+
+
+Resumen rápido
+
+- **Imagen:** Es un archivo listo para ejecutar, empaquetado con todo lo necesario para correr la aplicación (piensa en un “.iso” o “.exe”, pero más versátil y portable).
+- **Contenedor:** Es una instancia en ejecución de la imagen; es decir, cuando la “prendes” y ya está activa y funcionando.
+- **Volumen:** Es el espacio donde el contenedor guarda datos persistentes, para que no se pierdan si el contenedor se borra o reinicia (ya que los contenedores son desechables por diseño).
