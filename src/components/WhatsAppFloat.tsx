@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 function digitsOnly(phone: string | undefined) {
-  return (phone ?? "").replace(/\D/g, "") || "5215555555555";
+  return (phone ?? "").replace(/\D/g, "") || "";
 }
 
 function IconWhatsApp({ className }: { className?: string }) {
@@ -23,10 +23,11 @@ function IconX({ className }: { className?: string }) {
   );
 }
 
-export default function WhatsAppFloat() {
+export default function WhatsAppFloat({ phone }: { phone?: string }) {
   const t = useTranslations("whatsAppFloat");
-  const waPhone = digitsOnly(process.env.NEXT_PUBLIC_WHATSAPP_E164);
+  const waPhone = digitsOnly(phone || process.env.NEXT_PUBLIC_WHATSAPP_E164);
   const defaultWaFromEnv = process.env.NEXT_PUBLIC_CONTACT_WHATSAPP_DEFAULT?.trim();
+  if (!waPhone) return null;
 
   const [open, setOpen] = useState(false);
   const [contactName, setContactName] = useState("");
