@@ -69,6 +69,11 @@ export default async function Footer() {
                   {t("book")}
                 </Link>
               </li>
+              <li>
+                <Link href="/gift-cards" className={linkClass}>
+                  {t("giftCards")}
+                </Link>
+              </li>
             </ul>
           </nav>
 

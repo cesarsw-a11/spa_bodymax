@@ -13,6 +13,7 @@ export default async function AdminHome() {
     { href: "/admin/bookings" as const, label: t("linkBookings"), desc: t("linkBookingsDesc"), module: "bookings" as const },
     { href: "/admin/blocked" as const, label: t("linkBlocked"), desc: t("linkBlockedDesc"), module: "blocked" as const },
     { href: "/admin/testimonials" as const, label: t("linkTestimonials"), desc: t("linkTestimonialsDesc"), module: "testimonials" as const },
+    { href: "/admin/gift-cards" as const, label: t("linkGiftCards"), desc: t("linkGiftCardsDesc"), module: "giftCards" as const },
     { href: "/admin/roles" as const, label: t("linkRoles"), desc: t("linkRolesDesc"), module: "users" as const },
     { href: "/admin/users" as const, label: t("linkEmployees"), desc: t("linkEmployeesDesc"), module: "users" as const },
   ];

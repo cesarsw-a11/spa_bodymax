@@ -53,6 +53,7 @@ model Service {
   updatedAt   DateTime  @updatedAt
   bookings    Booking[]
   variants    ServiceVariant[]
+  giftCards   GiftCardOrder[]
 }
 
 model ServiceVariant {
@@ -68,6 +69,7 @@ model ServiceVariant {
   updatedAt   DateTime @updatedAt
   service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   bookings    Booking[]
+  giftCards   GiftCardOrder[]
 
   @@index([serviceId])
 }
@@ -99,6 +101,7 @@ model Booking {
   updatedAt              DateTime  @updatedAt
   service                Service   @relation(fields: [serviceId], references: [id])
   serviceVariant         ServiceVariant? @relation(fields: [serviceVariantId], references: [id])
+  redeemedGiftCard       GiftCardOrder?  @relation("GiftCardRedemption")
 
   @@index([serviceVariantId])
 }
@@ -136,4 +139,50 @@ model BlockedSlot {
   reason    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model GiftCardOrder {
+  id                      Int               @id @default(autoincrement())
+  status                  GiftCardStatus    @default(PENDING)
+  amount                  Decimal           @db.Decimal(10, 2)
+  currency                String            @default("mxn") @db.VarChar(8)
+
+  serviceId               Int
+  serviceVariantId        Int?
+  serviceNameSnapshot     String            @db.VarChar(191)
+  serviceNameEnSnapshot   String?           @db.VarChar(191)
+  variantLabelSnapshot    String?           @db.VarChar(191)
+  variantLabelEnSnapshot  String?           @db.VarChar(191)
+  variantDurationSnapshot Int?
+
+  recipientName           String            @db.VarChar(120)
+  senderName              String            @db.VarChar(120)
+  senderEmail             String?           @db.VarChar(191)
+  message                 String?           @db.Text
+
+  redeemCode              String            @unique @db.VarChar(32)
+
+  stripeCheckoutSessionId String?           @db.VarChar(255)
+  stripePaymentIntentId   String?           @db.VarChar(255)
+
+  redeemedAt              DateTime?
+  redeemedBookingId       Int?              @unique
+
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+
+  service                 Service           @relation(fields: [serviceId], references: [id])
+  serviceVariant          ServiceVariant?   @relation(fields: [serviceVariantId], references: [id])
+  redeemedBooking         Booking?          @relation("GiftCardRedemption", fields: [redeemedBookingId], references: [id], onDelete: SetNull)
+
+  @@index([serviceId])
+  @@index([serviceVariantId])
+  @@index([status])
+  @@index([redeemedAt])
+}
+
+enum GiftCardStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
 }

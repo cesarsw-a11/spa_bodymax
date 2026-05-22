@@ -46,6 +46,7 @@ function ConfirmacionContent() {
   const bookingIdStr = searchParams.get("bookingId") ?? searchParams.get("folio");
   const cancelledFlag = searchParams.get("cancelled");
   const sessionId = searchParams.get("session_id");
+  const redeemedFlag = searchParams.get("redeemed") === "1";
 
   const bookingId = useMemo(() => {
     if (!bookingIdStr) return NaN;
@@ -286,7 +287,10 @@ function ConfirmacionContent() {
 
           {booking.status === "CONFIRMED" && (
             <div className="mt-4 space-y-4">
-              <SuccessBanner title={t("paidTitle")} message={t("paidMsg")} />
+              <SuccessBanner
+                title={redeemedFlag || Number(booking.price) === 0 ? t("redeemedTitle") : t("paidTitle")}
+                message={redeemedFlag || Number(booking.price) === 0 ? t("redeemedMsg") : t("paidMsg")}
+              />
               <Link
                 href="/reserve"
                 className="mt-4 inline-flex rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"

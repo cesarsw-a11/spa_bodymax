@@ -6,6 +6,7 @@ export const ADMIN_MODULES = [
   "blocked",
   "testimonials",
   "users",
+  "giftCards",
 ] as const;
 
 export type AdminModule = (typeof ADMIN_MODULES)[number];
@@ -20,6 +21,7 @@ export const DEFAULT_ADMIN_PERMISSIONS: AdminPermissions = {
   blocked: false,
   testimonials: false,
   users: false,
+  giftCards: false,
 };
 
 export function isAdminModule(value: string): value is AdminModule {

@@ -9,7 +9,7 @@ import { computeDynamicPrice } from "@/lib/utils";
 import { isTenDigitPhone, isValidEmailFormat, normalizePhoneDigits } from "@/lib/validation";
 import { computeAddonsTotalFromList } from "@/lib/addons";
 import { LoadingCard, LoadingInline, LoadingOverlay } from "@/components/ui/BrandLoading";
-import { ErrorBanner } from "@/components/ui/BrandFeedback";
+import { ErrorBanner, SuccessBanner } from "@/components/ui/BrandFeedback";
 import { resolveApiErrorMessage } from "@/lib/resolve-api-message";
 import { resolveServiceText } from "@/lib/service-locale";
 import { resolveVariantLabel } from "@/lib/variant-label";
@@ -65,6 +65,19 @@ type PublicAddon = { id: number; name: string; price: number };
 
 type ServiceWithVariants = Service & { variants?: ServiceVariant[] };
 
+type AppliedGiftCard = {
+  redeemCode: string;
+  recipientName: string;
+  senderName: string;
+  serviceId: number;
+  serviceVariantId: number | null;
+  serviceNameSnapshot: string;
+  serviceNameEnSnapshot: string | null;
+  variantLabelSnapshot: string | null;
+  variantLabelEnSnapshot: string | null;
+  variantDurationSnapshot: number | null;
+};
+
 function ReservaPageContent() {
   const t = useTranslations("reserve");
   const tApi = useTranslations("apiErrors");
@@ -91,6 +104,12 @@ function ReservaPageContent() {
   const [servicesError, setServicesError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [availabilityCheckError, setAvailabilityCheckError] = useState<string | null>(null);
+
+  const [redeemInput, setRedeemInput] = useState<string>("");
+  const [redeemPanelOpen, setRedeemPanelOpen] = useState(false);
+  const [validatingRedeem, setValidatingRedeem] = useState(false);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
+  const [appliedGiftCard, setAppliedGiftCard] = useState<AppliedGiftCard | null>(null);
 
   const [availabilityStatus, setAvailabilityStatus] =
     useState<"idle" | "checking" | "available" | "unavailable">("idle");
@@ -222,10 +241,10 @@ function ReservaPageContent() {
     return Math.round(base * 100) / 100;
   }, [selectedService, selectedVariant, selectedDate]);
 
-  const total = useMemo(
-    () => Math.round((serviceSubtotal + addonsTotal) * 100) / 100,
-    [serviceSubtotal, addonsTotal],
-  );
+  const total = useMemo(() => {
+    if (appliedGiftCard) return 0;
+    return Math.round((serviceSubtotal + addonsTotal) * 100) / 100;
+  }, [serviceSubtotal, addonsTotal, appliedGiftCard]);
 
   const canContinueDate =
     !!selectedService &&
@@ -300,6 +319,53 @@ function ReservaPageContent() {
     );
   }
 
+  async function applyRedeemCode() {
+    const code = redeemInput.trim().toUpperCase();
+    if (!code) {
+      setRedeemError(t("redeemEmpty"));
+      return;
+    }
+    setValidatingRedeem(true);
+    setRedeemError(null);
+    try {
+      const res = await fetch("/api/gift-cards/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const json = (await res.json().catch(() => null)) as
+        | { ok?: boolean; data?: AppliedGiftCard; error?: string; errorCode?: string }
+        | null;
+      if (!res.ok || !json?.ok || !json.data) {
+        setRedeemError(resolveApiErrorMessage(json, tApi));
+        return;
+      }
+      const gc = json.data;
+      const svc = services.find((s) => s.id === gc.serviceId);
+      if (!svc) {
+        setRedeemError(t("redeemServiceMissing"));
+        return;
+      }
+      setAppliedGiftCard(gc);
+      setServiceId(String(gc.serviceId));
+      if (gc.serviceVariantId !== null && gc.serviceVariantId !== undefined) {
+        setVariantId(String(gc.serviceVariantId));
+      }
+      setSelectedAddonIds([]);
+    } catch (e) {
+      console.error(e);
+      setRedeemError(t("redeemGenericErr"));
+    } finally {
+      setValidatingRedeem(false);
+    }
+  }
+
+  function clearRedeemCode() {
+    setAppliedGiftCard(null);
+    setRedeemInput("");
+    setRedeemError(null);
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
@@ -315,8 +381,9 @@ function ReservaPageContent() {
         phone,
         email: email.trim(),
         notes: notes.trim() || undefined,
-        addons: selectedAddonIds,
+        addons: appliedGiftCard ? [] : selectedAddonIds,
         total,
+        ...(appliedGiftCard ? { redeemCode: appliedGiftCard.redeemCode } : {}),
       };
 
       const res = await fetch("/api/bookings", {
@@ -335,6 +402,12 @@ function ReservaPageContent() {
       const json = await res.json();
       const bookingId = json?.data?.id ?? json?.data?.folio ?? json?.id;
       if (!bookingId) throw new Error(t("bookingIdMissing"));
+
+      // Canje total: la reserva queda CONFIRMED, sin pasar por Stripe.
+      if (appliedGiftCard) {
+        window.location.href = `/${locale}/reserve/confirmacion?bookingId=${bookingId}&redeemed=1`;
+        return;
+      }
 
       const stripeRes = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
@@ -363,7 +436,10 @@ function ReservaPageContent() {
   return (
     <div className="relative mx-auto max-w-6xl p-4">
       {isSubmitting ? (
-        <LoadingOverlay message={t("loadingPayment")} submessage={t("loadingPaymentSub")} />
+        <LoadingOverlay
+          message={appliedGiftCard ? t("loadingRedeem") : t("loadingPayment")}
+          submessage={appliedGiftCard ? t("loadingRedeemSub") : t("loadingPaymentSub")}
+        />
       ) : null}
       <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-pink-400 p-6 text-white shadow-sm">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.15),transparent_40%),radial-gradient(circle_at_80%_0,rgba(255,255,255,0.12),transparent_35%)]" />
@@ -415,6 +491,100 @@ function ReservaPageContent() {
       <form onSubmit={onSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
           <Card className="p-4">
+            <SectionHeader title={t("redeemSectionTitle")} subtitle={t("redeemSectionSub")} />
+            {appliedGiftCard ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                      {t("redeemAppliedEyebrow")}
+                    </p>
+                    <p className="mt-1 font-mono text-sm font-semibold tracking-wider text-emerald-900">
+                      {appliedGiftCard.redeemCode}
+                    </p>
+                    <p className="mt-1 text-sm text-emerald-900/90">
+                      {locale === "en"
+                        ? appliedGiftCard.serviceNameEnSnapshot || appliedGiftCard.serviceNameSnapshot
+                        : appliedGiftCard.serviceNameSnapshot}
+                      {appliedGiftCard.variantLabelSnapshot
+                        ? ` · ${
+                            locale === "en"
+                              ? appliedGiftCard.variantLabelEnSnapshot ||
+                                appliedGiftCard.variantLabelSnapshot
+                              : appliedGiftCard.variantLabelSnapshot
+                          }`
+                        : null}
+                    </p>
+                    <p className="mt-1 text-xs text-emerald-800/90">
+                      {t("redeemAppliedRecipient", { name: appliedGiftCard.recipientName })}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearRedeemCode}
+                    className="cursor-pointer rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                  >
+                    {t("redeemRemoveBtn")}
+                  </button>
+                </div>
+                <p className="mt-3 rounded-lg bg-white/70 px-3 py-2 text-xs text-emerald-900/90">
+                  {t("redeemLockedHint")}
+                </p>
+              </div>
+            ) : redeemPanelOpen ? (
+              <div className="space-y-3 rounded-2xl border border-violet-100 bg-violet-50/40 p-4">
+                <label className="text-sm font-medium text-slate-700">{t("redeemInputLabel")}</label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    type="text"
+                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 font-mono tracking-widest uppercase focus:border-violet-500 focus:ring-violet-500"
+                    placeholder={t("redeemInputPh")}
+                    value={redeemInput}
+                    onChange={(e) => setRedeemInput(e.target.value.toUpperCase())}
+                    maxLength={32}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void applyRedeemCode()}
+                    disabled={validatingRedeem || !redeemInput.trim()}
+                    className="cursor-pointer rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {validatingRedeem ? t("redeemApplying") : t("redeemApplyBtn")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRedeemPanelOpen(false);
+                      setRedeemError(null);
+                      setRedeemInput("");
+                    }}
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    {t("redeemCancelBtn")}
+                  </button>
+                </div>
+                {redeemError ? (
+                  <p className="text-xs text-rose-600">{redeemError}</p>
+                ) : (
+                  <p className="text-xs text-slate-500">{t("redeemHint")}</p>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setRedeemPanelOpen(true)}
+                className="w-full cursor-pointer rounded-xl border border-dashed border-violet-300 bg-white px-4 py-3 text-sm font-medium text-violet-700 hover:bg-violet-50"
+              >
+                {t("redeemOpenBtn")}
+              </button>
+            )}
+          </Card>
+          {appliedGiftCard ? (
+            <SuccessBanner title={t("redeemBannerTitle")} message={t("redeemBannerMsg")} />
+          ) : null}
+          <Card className="p-4">
             <SectionHeader title={t("sectionService")} subtitle={t("sectionServiceSub")} />
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {loadingServices ? (
@@ -444,12 +614,19 @@ function ReservaPageContent() {
                   <button
                     key={s.id}
                     type="button"
-                    onClick={() => setServiceId(String(s.id))}
-                    className={`group cursor-pointer text-left rounded-2xl ring-1 ring-slate-200 p-4 hover:ring-violet-300 hover:shadow transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:cursor-not-allowed ${
+                    onClick={() => {
+                      if (appliedGiftCard) return;
+                      setServiceId(String(s.id));
+                    }}
+                    className={`group text-left rounded-2xl ring-1 ring-slate-200 p-4 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:cursor-not-allowed ${
                       serviceId === String(s.id) ? "ring-2 ring-violet-600 shadow" : ""
+                    } ${
+                      appliedGiftCard
+                        ? "cursor-not-allowed opacity-60"
+                        : "cursor-pointer hover:ring-violet-300 hover:shadow"
                     }`}
                     aria-pressed={serviceId === String(s.id)}
-                    disabled={loadingServices}
+                    disabled={loadingServices || (appliedGiftCard !== null && serviceId !== String(s.id))}
                   >
                     <div className="flex items-start justify-between">
                       <div>
@@ -493,8 +670,12 @@ function ReservaPageContent() {
                             type="button"
                             role="radio"
                             aria-checked={selected}
-                            onClick={() => setVariantId(String(v.id))}
-                            className={`rounded-xl border px-3 py-2 text-left text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                            onClick={() => {
+                              if (appliedGiftCard) return;
+                              setVariantId(String(v.id));
+                            }}
+                            disabled={appliedGiftCard !== null && !selected}
+                            className={`rounded-xl border px-3 py-2 text-left text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-60 ${
                               selected
                                 ? "border-violet-600 bg-violet-50 font-medium text-violet-900 ring-2 ring-violet-600"
                                 : "border-slate-200 bg-white hover:border-violet-300"
@@ -537,37 +718,41 @@ function ReservaPageContent() {
               </div>
             </div>
 
-            <Divider />
-            <SectionHeader title={t("addonsTitle")} subtitle={t("addonsSub")} />
-            {addonsCatalogError ? (
-              <p className="mb-3 text-sm text-amber-800">{addonsCatalogError}</p>
-            ) : null}
-            {loadingAddonsCatalog ? (
-              <LoadingInline message={t("loadingAddons")} />
-            ) : addonCatalog.length === 0 ? (
-              <p className="text-sm text-slate-500">{t("noAddons")}</p>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {addonCatalog.map((a) => (
-                  <label
-                    key={a.id}
-                    className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 p-3 transition hover:border-violet-300"
-                  >
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
-                      checked={selectedAddonIds.includes(a.id)}
-                      onChange={() => toggleAddon(a.id)}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-slate-800">{a.name}</p>
-                      <p className="text-xs text-slate-500">
-                        + ${Number(a.price).toFixed(2)} {t("mxn")}
-                      </p>
-                    </div>
-                  </label>
-                ))}
-              </div>
+            {appliedGiftCard ? null : (
+              <>
+                <Divider />
+                <SectionHeader title={t("addonsTitle")} subtitle={t("addonsSub")} />
+                {addonsCatalogError ? (
+                  <p className="mb-3 text-sm text-amber-800">{addonsCatalogError}</p>
+                ) : null}
+                {loadingAddonsCatalog ? (
+                  <LoadingInline message={t("loadingAddons")} />
+                ) : addonCatalog.length === 0 ? (
+                  <p className="text-sm text-slate-500">{t("noAddons")}</p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {addonCatalog.map((a) => (
+                      <label
+                        key={a.id}
+                        className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 p-3 transition hover:border-violet-300"
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                          checked={selectedAddonIds.includes(a.id)}
+                          onChange={() => toggleAddon(a.id)}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-slate-800">{a.name}</p>
+                          <p className="text-xs text-slate-500">
+                            + ${Number(a.price).toFixed(2)} {t("mxn")}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </Card>
 
@@ -696,16 +881,34 @@ function ReservaPageContent() {
               {selectedService && !selectedDate ? (
                 <p className="text-[11px] leading-snug text-slate-400">{t("sumBaseHint")}</p>
               ) : null}
-              <div className="flex items-center justify-between">
-                <dt className="text-slate-500">{t("sumAddons")}</dt>
-                <dd className="tabular-nums text-slate-800" aria-live="polite" aria-atomic="true">
-                  ${addonsTotal.toFixed(2)} {t("mxn")}
-                </dd>
-              </div>
+              {appliedGiftCard ? null : (
+                <div className="flex items-center justify-between">
+                  <dt className="text-slate-500">{t("sumAddons")}</dt>
+                  <dd className="tabular-nums text-slate-800" aria-live="polite" aria-atomic="true">
+                    ${addonsTotal.toFixed(2)} {t("mxn")}
+                  </dd>
+                </div>
+              )}
+              {appliedGiftCard ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                    {t("sumRedeem")}
+                  </p>
+                  <p className="mt-1 font-mono text-sm text-emerald-900">
+                    {appliedGiftCard.redeemCode}
+                  </p>
+                </div>
+              ) : null}
               <div className="flex items-center justify-between text-base font-semibold">
                 <dt>{t("sumTotal")}</dt>
                 <dd className="tabular-nums" aria-live="polite" aria-atomic="true">
-                  ${total.toFixed(2)} {t("mxn")}
+                  {appliedGiftCard ? (
+                    <span className="text-emerald-700">{t("sumTotalRedeemed")}</span>
+                  ) : (
+                    <>
+                      ${total.toFixed(2)} {t("mxn")}
+                    </>
+                  )}
                 </dd>
               </div>
             </dl>
@@ -715,10 +918,18 @@ function ReservaPageContent() {
               className="mt-4 w-full cursor-pointer rounded-xl bg-violet-600 px-4 py-3 font-semibold text-white shadow hover:bg-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={!canSubmit || isSubmitting}
             >
-              {isSubmitting ? t("creatingPayment") : t("confirmPay")}
+              {isSubmitting
+                ? appliedGiftCard
+                  ? t("creatingRedeem")
+                  : t("creatingPayment")
+                : appliedGiftCard
+                  ? t("confirmRedeem")
+                  : t("confirmPay")}
             </button>
 
-            <p className="mt-3 text-xs text-slate-500">{t("stripeNote")}</p>
+            <p className="mt-3 text-xs text-slate-500">
+              {appliedGiftCard ? t("redeemFooterNote") : t("stripeNote")}
+            </p>
           </Card>
         </div>
       </form>

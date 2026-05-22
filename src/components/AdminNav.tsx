@@ -16,6 +16,7 @@ export default function AdminNav({ allowedModules }: { allowedModules: AdminModu
     { href: "/admin/bookings", labelKey: "bookings" as const, module: "bookings" as const },
     { href: "/admin/blocked", labelKey: "blocked" as const, module: "blocked" as const },
     { href: "/admin/testimonials", labelKey: "testimonials" as const, module: "testimonials" as const },
+    { href: "/admin/gift-cards", labelKey: "giftCards" as const, module: "giftCards" as const },
     { href: "/admin/roles", labelKey: "roles" as const, module: "users" as const },
     { href: "/admin/users", labelKey: "employees" as const, module: "users" as const },
   ];

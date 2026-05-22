@@ -16,3 +16,18 @@ export function isValidEmailFormat(email: string): boolean {
   if (!t || t.length > 254) return false;
   return EMAIL_RE.test(t);
 }
+
+/** Limita y limpia el nombre (destinatario o remitente). */
+export function normalizePersonName(raw: string): string {
+  return raw.replace(/\s+/g, " ").trim().slice(0, 120);
+}
+
+/** Limpia el mensaje opcional en la tarjeta (acepta saltos de línea). */
+export function normalizeGiftMessage(raw: string): string {
+  return raw.replace(/[\u0000-\u001F]+/g, (m) => (m.includes("\n") ? "\n" : " ")).trim().slice(0, 500);
+}
+
+export function isValidPersonName(value: string): boolean {
+  const t = normalizePersonName(value);
+  return t.length >= 2 && t.length <= 120;
+}

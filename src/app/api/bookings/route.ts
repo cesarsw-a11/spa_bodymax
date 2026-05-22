@@ -87,6 +87,47 @@ export async function POST(req: Request) {
   const end = computeEnd(start, variant.durationMin);
   const rawAddonIds = parseAddonIdsFromBody(body.addons);
 
+  const redeemCodeRaw = typeof body.redeemCode === "string" ? body.redeemCode.trim().toUpperCase() : "";
+
+  // Validación de la tarjeta de regalo (canje total, sin Stripe).
+  let giftCardId: number | null = null;
+  if (redeemCodeRaw) {
+    const gc = await prisma.giftCardOrder.findUnique({ where: { redeemCode: redeemCodeRaw } });
+    if (!gc) return errJson(404, "GIFT_CARD_NOT_FOUND", "Tarjeta de regalo no encontrada.");
+    if (gc.status !== "CONFIRMED") {
+      return errJson(
+        409,
+        "GIFT_CARD_NOT_REDEEMABLE",
+        "Esta tarjeta aún no está pagada o fue cancelada y no se puede canjear.",
+      );
+    }
+    if (gc.redeemedAt) {
+      return errJson(409, "GIFT_CARD_ALREADY_REDEEMED", "Esta tarjeta de regalo ya fue canjeada.");
+    }
+    if (gc.serviceId !== service.id) {
+      return errJson(
+        409,
+        "GIFT_CARD_SERVICE_MISMATCH",
+        "La tarjeta solo cubre el servicio original con el que fue emitida.",
+      );
+    }
+    if (gc.serviceVariantId !== null && gc.serviceVariantId !== variant.id) {
+      return errJson(
+        409,
+        "GIFT_CARD_VARIANT_MISMATCH",
+        "La tarjeta cubre una opción distinta del servicio.",
+      );
+    }
+    if (rawAddonIds.length > 0) {
+      return errJson(
+        409,
+        "GIFT_CARD_NO_ADDONS",
+        "El canje de tarjeta no admite complementos. Crea una reserva independiente para ellos.",
+      );
+    }
+    giftCardId = gc.id;
+  }
+
   let addonsTotal = 0;
   let addonsJsonStored: string | null = null;
 
@@ -108,21 +149,8 @@ export async function POST(req: Request) {
   }
 
   const servicePrice = computeDynamicPrice(Number(variant.price), start);
-  const price = Math.round((servicePrice + addonsTotal) * 100) / 100;
-
-  const conflict = await prisma.booking.findFirst({
-    where: {
-      serviceId: service.id,
-      status: { in: ["PENDING", "CONFIRMED"] },
-      AND: [{ date: { lt: end } }, { endDate: { gt: start } }],
-    },
-  });
-  if (conflict) return errJson(409, "SLOT_TAKEN", "Horario ocupado");
-
-  const block = await prisma.blockedSlot.findFirst({
-    where: { AND: [{ start: { lt: end } }, { end: { gt: start } }] },
-  });
-  if (block) return errJson(409, "BLOCKED", block.reason || "Bloqueado");
+  const computedPrice = Math.round((servicePrice + addonsTotal) * 100) / 100;
+  const finalPrice = giftCardId ? 0 : computedPrice;
 
   const customer = typeof body.customer === "string" ? body.customer.trim() : "";
   if (!customer) {
@@ -141,25 +169,101 @@ export async function POST(req: Request) {
 
   const notes = typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null;
 
-  const clientTotal = Number(body.total);
-  if (Number.isFinite(clientTotal) && Math.abs(clientTotal - price) > 0.02) {
-    return errJson(400, "PRICE_MISMATCH", "El total no coincide con el precio calculado.");
+  if (!giftCardId) {
+    const clientTotal = Number(body.total);
+    if (Number.isFinite(clientTotal) && Math.abs(clientTotal - finalPrice) > 0.02) {
+      return errJson(400, "PRICE_MISMATCH", "El total no coincide con el precio calculado.");
+    }
   }
 
-  const data = await prisma.booking.create({
-    data: {
-      customer,
-      phone: phoneDigits,
-      email: emailTrim,
-      notes,
-      serviceId: service.id,
-      serviceVariantId: variant.id,
-      date: start,
-      endDate: end,
-      price,
-      status: "PENDING",
-      addonsJson: addonsJsonStored,
-    },
-  });
-  return Response.json({ ok: true, data });
+  // Reserva normal (sin canje): flujo previo intacto.
+  if (!giftCardId) {
+    const conflict = await prisma.booking.findFirst({
+      where: {
+        serviceId: service.id,
+        status: { in: ["PENDING", "CONFIRMED"] },
+        AND: [{ date: { lt: end } }, { endDate: { gt: start } }],
+      },
+    });
+    if (conflict) return errJson(409, "SLOT_TAKEN", "Horario ocupado");
+
+    const block = await prisma.blockedSlot.findFirst({
+      where: { AND: [{ start: { lt: end } }, { end: { gt: start } }] },
+    });
+    if (block) return errJson(409, "BLOCKED", block.reason || "Bloqueado");
+
+    const data = await prisma.booking.create({
+      data: {
+        customer,
+        phone: phoneDigits,
+        email: emailTrim,
+        notes,
+        serviceId: service.id,
+        serviceVariantId: variant.id,
+        date: start,
+        endDate: end,
+        price: finalPrice,
+        status: "PENDING",
+        addonsJson: addonsJsonStored,
+      },
+    });
+    return Response.json({ ok: true, data });
+  }
+
+  // Canje: transacción atómica que re-verifica traslapes y reserva la tarjeta.
+  try {
+    const created = await prisma.$transaction(async (tx) => {
+      const conflict = await tx.booking.findFirst({
+        where: {
+          serviceId: service.id,
+          status: { in: ["PENDING", "CONFIRMED"] },
+          AND: [{ date: { lt: end } }, { endDate: { gt: start } }],
+        },
+      });
+      if (conflict) throw new Error("SLOT_TAKEN");
+
+      const block = await tx.blockedSlot.findFirst({
+        where: { AND: [{ start: { lt: end } }, { end: { gt: start } }] },
+      });
+      if (block) throw new Error("BLOCKED");
+
+      const booking = await tx.booking.create({
+        data: {
+          customer,
+          phone: phoneDigits,
+          email: emailTrim,
+          notes,
+          serviceId: service.id,
+          serviceVariantId: variant.id,
+          date: start,
+          endDate: end,
+          price: 0,
+          status: "CONFIRMED",
+          addonsJson: null,
+        },
+      });
+
+      // Marca la tarjeta como canjeada solo si sigue sin canjearse.
+      const locked = await tx.giftCardOrder.updateMany({
+        where: { id: giftCardId!, redeemedAt: null, status: "CONFIRMED" },
+        data: {
+          redeemedAt: new Date(),
+          redeemedBookingId: booking.id,
+        },
+      });
+      if (locked.count !== 1) throw new Error("GIFT_CARD_ALREADY_REDEEMED");
+
+      return booking;
+    });
+
+    return Response.json({ ok: true, data: created, redeemed: true });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    if (msg === "SLOT_TAKEN") return errJson(409, "SLOT_TAKEN", "Horario ocupado");
+    if (msg === "BLOCKED") return errJson(409, "BLOCKED", "Horario bloqueado");
+    if (msg === "GIFT_CARD_ALREADY_REDEEMED") {
+      return errJson(409, "GIFT_CARD_ALREADY_REDEEMED", "Esta tarjeta de regalo ya fue canjeada.");
+    }
+    throw e;
+  }
 }
