@@ -1,0 +1,77 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: spa-bodymax-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-spa_bodymax}
+      MYSQL_USER: ${MYSQL_USER:-spa}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-spapass}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Usa la red del host durante el build para que Next pueda descargar
+      # fuentes de Google (next/font/google) y cualquier otra dependencia
+      # remota. Sin esto, en algunos entornos (Fedora/systemd-resolved)
+      # BuildKit falla con EAI_AGAIN al resolver fonts.googleapis.com.
+      network: host
+    container_name: spa-bodymax-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER:-spa}:${MYSQL_PASSWORD:-spapass}@db:3306/${MYSQL_DATABASE:-spa_bodymax}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-cambia-este-secreto}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@spabodymax.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      NEXT_PUBLIC_TAWK_PROPERTY_ID: ${NEXT_PUBLIC_TAWK_PROPERTY_ID:-}
+      NEXT_PUBLIC_TAWK_WIDGET_ID: ${NEXT_PUBLIC_TAWK_WIDGET_ID:-}
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads_data:/app/public/uploads
+
+  # Servicio on-demand para ejecutar el seed de Prisma.
+  # Reutiliza la etapa `builder` del Dockerfile (tiene tsx y todas las
+  # devDependencies), así el runner se mantiene ligero.
+  # Lanzar con: docker compose --profile tools run --rm seed
+  seed:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      network: host
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER:-spa}:${MYSQL_PASSWORD:-spapass}@db:3306/${MYSQL_DATABASE:-spa_bodymax}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@spabodymax.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+    command: ["npx", "tsx", "prisma/seed.ts"]
+
+volumes:
+  db_data:
+  uploads_data:
