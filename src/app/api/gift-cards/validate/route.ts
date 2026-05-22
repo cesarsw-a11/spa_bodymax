@@ -1,12 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
 import { decimalToNumber } from "@/lib/giftCard";
-import { getTenantId } from "@/lib/tenant";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const tenantId = await getTenantId();
   let body: { code?: unknown };
   try {
     body = await req.json();
@@ -22,7 +20,7 @@ export async function POST(req: Request) {
     include: { service: true, serviceVariant: true },
   });
 
-  if (!order || order.tenantId !== tenantId) return errJson(404, "GIFT_CARD_NOT_FOUND", "Tarjeta de regalo no encontrada.");
+  if (!order) return errJson(404, "GIFT_CARD_NOT_FOUND", "Tarjeta de regalo no encontrada.");
   if (order.status !== "CONFIRMED") {
     return errJson(409, "GIFT_CARD_NOT_REDEEMABLE", "Esta tarjeta aún no está pagada o fue cancelada y no se puede canjear.");
   }

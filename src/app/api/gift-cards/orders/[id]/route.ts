@@ -1,18 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
 import { decimalToNumber } from "@/lib/giftCard";
-import { getTenantId } from "@/lib/tenant";
 
 export const runtime = "nodejs";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const tenantId = await getTenantId();
   const { id: idStr } = await ctx.params;
   const id = Number(idStr);
   if (!Number.isFinite(id) || id <= 0) return errJson(400, "INVALID_ID", "Identificador no válido.");
 
   const order = await prisma.giftCardOrder.findUnique({ where: { id } });
-  if (!order || order.tenantId !== tenantId) return errJson(404, "GIFT_CARD_NOT_FOUND", "Tarjeta de regalo no encontrada.");
+  if (!order) return errJson(404, "GIFT_CARD_NOT_FOUND", "Tarjeta de regalo no encontrada.");
 
   return Response.json({
     ok: true,

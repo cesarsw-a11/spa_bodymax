@@ -2,12 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
 import { buildServiceSnapshot, reserveUniqueRedeemCode } from "@/lib/giftCard";
 import { isValidEmailFormat, isValidPersonName, normalizeGiftMessage, normalizePersonName } from "@/lib/validation";
-import { getTenantId } from "@/lib/tenant";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const tenantId = await getTenantId();
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -40,14 +38,8 @@ export async function POST(req: Request) {
     return errJson(400, "INVALID_EMAIL", "Indica un correo electrónico válido.");
   }
 
-  // Verify plan allows gift cards
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, include: { plan: true } });
-  if (tenant?.plan && !tenant.plan.giftCardsEnabled) {
-    return errJson(403, "PLAN_NO_GIFT_CARDS", "Las tarjetas de regalo no están disponibles en tu plan actual.");
-  }
-
   const service = await prisma.service.findUnique({ where: { id: serviceId }, include: { variants: true } });
-  if (!service || !service.active || service.tenantId !== tenantId) {
+  if (!service || !service.active) {
     return errJson(400, "SERVICE_UNAVAILABLE", "Servicio no disponible.");
   }
 
@@ -76,10 +68,9 @@ export async function POST(req: Request) {
   try {
     const order = await prisma.giftCardOrder.create({
       data: {
-        tenantId,
         status: "PENDING",
         amount: snapshot.amount,
-        currency: tenant?.currency ?? "mxn",
+        currency: "mxn",
         serviceId: service.id,
         serviceVariantId: variant?.id ?? null,
         serviceNameSnapshot: snapshot.serviceNameSnapshot,

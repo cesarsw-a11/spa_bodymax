@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminModule } from "@/lib/auth";
 import { decimalToNumber } from "@/lib/giftCard";
-import { getTenantId } from "@/lib/tenant";
 import type { Prisma, GiftCardStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -24,7 +23,6 @@ function parseRedeemed(raw: string | null): "only" | "none" | null {
 export async function GET(req: Request) {
   const forbidden = await requireAdminModule("giftCards");
   if (forbidden) return forbidden;
-  const tenantId = await getTenantId();
 
   const { searchParams } = new URL(req.url);
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
@@ -34,7 +32,7 @@ export async function GET(req: Request) {
   const redeemed = parseRedeemed(searchParams.get("redeemed"));
   const q = (searchParams.get("q") ?? "").trim();
 
-  const where: Prisma.GiftCardOrderWhereInput = { tenantId };
+  const where: Prisma.GiftCardOrderWhereInput = {};
   if (status) where.status = status;
   if (redeemed === "only") where.redeemedAt = { not: null };
   if (redeemed === "none") where.redeemedAt = null;

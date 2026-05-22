@@ -1,14 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
-import { getStripeForTenant } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { paymentIntentIdFromSession } from "@/lib/giftCard";
-import { getTenantId, getCurrentTenant } from "@/lib/tenant";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const tenantId = await getTenantId();
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -23,8 +21,7 @@ export async function POST(req: Request) {
     return errJson(400, "SYNC_BAD_INPUT", "Identificadores de tarjeta o sesión no válidos.");
   }
 
-  const tenant = await getCurrentTenant();
-  const stripe = getStripeForTenant(tenant);
+  const stripe = getStripe();
   let session: Stripe.Checkout.Session;
   try {
     session = await stripe.checkout.sessions.retrieve(sessionId);
@@ -42,12 +39,12 @@ export async function POST(req: Request) {
   if (isPaid) {
     const stripePaymentIntentId = paymentIntentIdFromSession(session);
     await prisma.giftCardOrder.updateMany({
-      where: { id: giftCardOrderId, tenantId, status: "PENDING" },
+      where: { id: giftCardOrderId, status: "PENDING" },
       data: { status: "CONFIRMED", ...(stripePaymentIntentId ? { stripePaymentIntentId } : {}) },
     });
   } else {
     await prisma.giftCardOrder.updateMany({
-      where: { id: giftCardOrderId, tenantId, status: "PENDING" },
+      where: { id: giftCardOrderId, status: "PENDING" },
       data: { status: "CANCELLED" },
     });
   }

@@ -1,8 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
-import { getStripeForTenant } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { decimalToNumber, resolveSnapshotServiceName } from "@/lib/giftCard";
-import { getTenantId, getCurrentTenant } from "@/lib/tenant";
 import type { AppLocale } from "@/i18n/routing";
 
 export const runtime = "nodejs";
@@ -12,7 +11,6 @@ function parseLocale(raw: unknown): AppLocale {
 }
 
 export async function POST(req: Request) {
-  const tenantId = await getTenantId();
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -27,7 +25,7 @@ export async function POST(req: Request) {
   const locale = parseLocale(body.locale);
 
   const order = await prisma.giftCardOrder.findUnique({ where: { id: giftCardOrderId } });
-  if (!order || order.tenantId !== tenantId) return errJson(404, "GIFT_CARD_NOT_FOUND", "Tarjeta de regalo no encontrada.");
+  if (!order) return errJson(404, "GIFT_CARD_NOT_FOUND", "Tarjeta de regalo no encontrada.");
   if (order.status !== "PENDING") {
     return errJson(409, "GIFT_CARD_NOT_PAYABLE", `La tarjeta no está lista para pagar (status=${order.status})`);
   }
@@ -35,7 +33,6 @@ export async function POST(req: Request) {
   const amountCents = Math.round(decimalToNumber(order.amount) * 100);
   if (amountCents <= 0) return errJson(400, "PRICE_INVALID", "El precio debe ser mayor que 0.");
 
-  const tenant = await getCurrentTenant();
   const host = req.headers.get("host") ?? "";
   const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
   const baseUrl = `${protocol}://${host}`;
@@ -44,13 +41,13 @@ export async function POST(req: Request) {
   const cancelUrl = `${baseUrl}/${locale}/gift-cards/confirmacion?giftCardOrderId=${encodeURIComponent(String(order.id))}&cancelled=1&session_id={CHECKOUT_SESSION_ID}`;
   const productName = `${locale === "en" ? "Gift card" : "Tarjeta de regalo"} · ${resolveSnapshotServiceName(order, locale)}`;
 
-  const stripe = getStripeForTenant(tenant);
+  const stripe = getStripe();
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     payment_method_types: ["card"],
     line_items: [{
       price_data: {
-        currency: order.currency || tenant.currency || "mxn",
+        currency: order.currency || "mxn",
         product_data: { name: productName },
         unit_amount: amountCents,
       },

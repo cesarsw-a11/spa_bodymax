@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { errJson } from "@/lib/err-json";
-import { getTenantId } from "@/lib/tenant";
 import { renderGiftCardPdf, renderGiftCardPng } from "@/lib/giftCardRender";
 import type { AppLocale } from "@/i18n/routing";
 
@@ -28,12 +27,11 @@ export async function GET(
     return errJson(400, "INVALID_ID", "Identificador no válido.");
   }
 
-  const tenantId = await getTenantId();
   const url = new URL(req.url);
   const format = parseFormat(url.searchParams.get("format"));
   const locale = parseLocale(url.searchParams.get("locale"));
 
-  const order = await prisma.giftCardOrder.findFirst({ where: { id, tenantId } });
+  const order = await prisma.giftCardOrder.findUnique({ where: { id } });
   if (!order) return errJson(404, "GIFT_CARD_NOT_FOUND", "Tarjeta de regalo no encontrada.");
   if (order.status !== "CONFIRMED") {
     return errJson(
