@@ -1,55 +1,101 @@
+# Aqui definimos todos los "mini-programas" (contenedores) que levantara Docker.
 services:
+  # Servicio de base de datos MySQL.
   db:
+    # Imagen oficial de MySQL version 8.0.
     image: mysql:8.0
+    # Nombre facil de recordar para este contenedor.
     container_name: spa-bodymax-db
+    # Si se cae, Docker lo vuelve a levantar (excepto si lo detuviste manualmente).
     restart: unless-stopped
+    # Variables para crear/configurar la base al iniciar.
     environment:
+      # Contrasena del usuario root (administrador total de MySQL).
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      # Nombre de la base de datos que se creara automaticamente.
       MYSQL_DATABASE: ${MYSQL_DATABASE:-spa_bodymax}
+      # Usuario normal de la app.
       MYSQL_USER: ${MYSQL_USER:-spa}
+      # Contrasena del usuario de la app.
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-spapass}
+    # Opciones extra que se pasan al servidor MySQL.
     command:
+      # Define juego de caracteres UTF-8 moderno (soporta emojis y mas idiomas).
       - --character-set-server=utf8mb4
+      # Define reglas de comparacion de texto para Unicode.
       - --collation-server=utf8mb4_unicode_ci
+    # "Disco persistente": guarda datos aunque borres el contenedor.
     volumes:
+      # Volumen db_data montado donde MySQL guarda su informacion.
       - db_data:/var/lib/mysql
+    # Abre el puerto de MySQL para conectarte desde tu PC.
     ports:
+      # izquierda: puerto en tu PC, derecha: puerto dentro del contenedor.
       - "3306:3306"
+    # Revisa si MySQL ya esta "sano" y listo para recibir conexiones.
     healthcheck:
+      # Comando de prueba: hace ping a MySQL dentro del contenedor.
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      # Cada cuanto tiempo hace la prueba.
       interval: 5s
+      # Tiempo maximo de espera por cada prueba.
       timeout: 5s
+      # Cuantos intentos fallidos permite antes de marcarlo como no saludable.
       retries: 20
+      # Tiempo inicial de gracia antes de empezar a evaluar fallos.
       start_period: 20s
 
+  # Servicio de tu aplicacion web (Next.js).
   app:
+    # Le dice a Docker que construya imagen usando tu Dockerfile.
     build:
+      # Carpeta base del proyecto para el build.
       context: .
+      # Archivo que contiene las instrucciones de construccion.
       dockerfile: Dockerfile
       # Usa la red del host durante el build para que Next pueda descargar
       # fuentes de Google (next/font/google) y cualquier otra dependencia
       # remota. Sin esto, en algunos entornos (Fedora/systemd-resolved)
       # BuildKit falla con EAI_AGAIN al resolver fonts.googleapis.com.
+      # Permite usar la red de tu maquina durante el build.
       network: host
+    # Nombre facil para el contenedor de la app.
     container_name: spa-bodymax-app
+    # Reinicia la app automaticamente si se cae.
     restart: unless-stopped
+    # Hace que la app espere a que la BD este sana antes de iniciar.
     depends_on:
       db:
         condition: service_healthy
+    # Variables de entorno que usa tu app dentro del contenedor.
     environment:
+      # Cadena de conexion a MySQL usando el servicio "db" como host.
       DATABASE_URL: mysql://${MYSQL_USER:-spa}:${MYSQL_PASSWORD:-spapass}@db:3306/${MYSQL_DATABASE:-spa_bodymax}
+      # URL publica base para autenticacion.
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      # Secreto para firmar sesiones/tokens de autenticacion.
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-cambia-este-secreto}
+      # URL publica que usa el frontend.
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      # Correo del admin inicial.
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@spabodymax.com}
+      # Contrasena del admin inicial.
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      # Clave secreta de Stripe (pagos), vacia por defecto.
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      # Secreto de webhook de Stripe, vacio por defecto.
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # Configuracion opcional del widget Tawk (chat), publica.
       NEXT_PUBLIC_TAWK_PROPERTY_ID: ${NEXT_PUBLIC_TAWK_PROPERTY_ID:-}
+      # Configuracion opcional del widget Tawk (chat), publica.
       NEXT_PUBLIC_TAWK_WIDGET_ID: ${NEXT_PUBLIC_TAWK_WIDGET_ID:-}
+    # Publica la app para abrirla desde navegador en tu PC.
     ports:
+      # Puerto 3000 de tu PC hacia puerto 3000 del contenedor.
       - "3000:3000"
+    # Volumen persistente para archivos subidos por usuarios.
     volumes:
+      # Guarda uploads fuera del contenedor para no perderlos al recrear.
       - uploads_data:/app/public/uploads
 
   # Servicio on-demand para ejecutar el seed de Prisma.
@@ -57,21 +103,36 @@ services:
   # devDependencies), así el runner se mantiene ligero.
   # Lanzar con: docker compose --profile tools run --rm seed
   seed:
+    # Solo corre cuando activas el perfil "tools".
     profiles: ["tools"]
+    # Construye imagen desde el mismo proyecto.
     build:
+      # Carpeta base para construir.
       context: .
+      # Dockerfile que se usara.
       dockerfile: Dockerfile
+      # Usa especificamente la etapa "builder" (trae herramientas de desarrollo).
       target: builder
+      # Red del host durante build para evitar problemas DNS en algunas maquinas.
       network: host
+    # Espera a que la base de datos este saludable.
     depends_on:
       db:
         condition: service_healthy
+    # Variables necesarias para conectar y sembrar datos.
     environment:
+      # Conexion a la misma BD del servicio principal.
       DATABASE_URL: mysql://${MYSQL_USER:-spa}:${MYSQL_PASSWORD:-spapass}@db:3306/${MYSQL_DATABASE:-spa_bodymax}
+      # Datos del admin que podria crear el seed.
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@spabodymax.com}
+      # Datos del admin que podria crear el seed.
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+    # Comando que ejecuta el script de seed una sola vez.
     command: ["npx", "tsx", "prisma/seed.ts"]
 
+# Aqui declaramos los volumenes nombrados que usa Compose.
 volumes:
+  # Volumen para guardar datos de MySQL.
   db_data:
+  # Volumen para guardar archivos subidos por la app.
   uploads_data:
