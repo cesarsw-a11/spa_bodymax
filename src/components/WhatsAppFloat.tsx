@@ -27,7 +27,6 @@ export default function WhatsAppFloat({ phone }: { phone?: string }) {
   const t = useTranslations("whatsAppFloat");
   const waPhone = digitsOnly(phone || process.env.NEXT_PUBLIC_WHATSAPP_E164);
   const defaultWaFromEnv = process.env.NEXT_PUBLIC_CONTACT_WHATSAPP_DEFAULT?.trim();
-  if (!waPhone) return null;
 
   const [open, setOpen] = useState(false);
   const [contactName, setContactName] = useState("");
@@ -67,6 +66,8 @@ export default function WhatsAppFloat({ phone }: { phone?: string }) {
     }, 50);
     return () => window.clearTimeout(timer);
   }, [open]);
+
+  if (!waPhone) return null;
 
   const sendWhatsApp = () => {
     const name = contactName.trim();

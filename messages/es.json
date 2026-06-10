@@ -779,6 +779,7 @@
     "module_bookings": "Reservas",
     "module_blocked": "Bloqueos",
     "module_testimonials": "Testimonios",
+    "module_giftCards": "Tarjetas de regalo",
     "module_users": "Usuarios y roles"
   },
   "adminUsers": {

@@ -779,6 +779,7 @@
     "module_bookings": "Bookings",
     "module_blocked": "Blocked slots",
     "module_testimonials": "Testimonials",
+    "module_giftCards": "Gift cards",
     "module_users": "Users and roles"
   },
   "adminUsers": {
