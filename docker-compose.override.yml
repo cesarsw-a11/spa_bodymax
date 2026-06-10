@@ -1,0 +1,19 @@
+services:
+  app:
+    build:
+      target: deps
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        npx prisma generate \
+        && npx prisma migrate deploy \
+        && npm run dev
+    environment:
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    user: "0:0"
